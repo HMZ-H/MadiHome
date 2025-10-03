@@ -20,6 +20,8 @@ build/
 *.dll
 *.so
 *.dylib
+main
+backend/main
 
 # Go specific
 *.test
