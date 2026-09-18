@@ -69,6 +69,11 @@ func AuthMiddleware(jwtService *security.JWTService) gin.HandlerFunc {
 			return
 		}
 
+		// Safety check: if role is empty, default to 'user'
+		if role == "" {
+			role = "user"
+		}
+
 		// set user information in context
 		c.Set("user_id", uint(userID))
 		c.Set("email", email)

@@ -74,3 +74,24 @@ func (r *UserRepository) DeleteUser(id uint) error {
 	}
 	return nil
 }
+
+// Cascade deletion methods
+func (r *UserRepository) DeleteRefreshTokensByUserID(userID uint) error {
+	return r.db.Where("user_id = ?", userID).Delete(&entity.RefreshToken{}).Error
+}
+
+func (r *UserRepository) DeleteBookingsByUserID(userID uint) error {
+	return r.db.Where("user_id = ?", userID).Delete(&entity.Booking{}).Error
+}
+
+func (r *UserRepository) DeleteHomecarePlansByUserID(userID uint) error {
+	return r.db.Where("patient_id = ?", userID).Delete(&entity.HomecarePlan{}).Error
+}
+
+func (r *UserRepository) DeleteHomecareVisitsByUserID(userID uint) error {
+	return r.db.Where("patient_id = ?", userID).Delete(&entity.HomecareVisit{}).Error
+}
+
+func (r *UserRepository) DeleteDoctorByUserID(userID uint) error {
+	return r.db.Where("user_id = ?", userID).Delete(&entity.Doctor{}).Error
+}

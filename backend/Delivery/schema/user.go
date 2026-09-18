@@ -11,6 +11,7 @@ type CreateUserRequest struct {
 	Gender    string `json:"gender"`
 	Birthday  string `json:"birthday"`
 	Address   string `json:"address"`
+	Photo     string `json:"photo"`
 	Role      string `json:"role"`
 }
 
@@ -22,6 +23,7 @@ type UpdateUserRequest struct {
 	Gender    string `json:"gender"`
 	Birthday  string `json:"birthday"`
 	Address   string `json:"address"`
+	Photo     string `json:"photo"`
 	Role      string `json:"role"`
 }
 
@@ -35,6 +37,7 @@ type UserResponse struct {
 	Gender     string    `json:"gender"`
 	Birthday   string    `json:"birthday"`
 	Address    string    `json:"address"`
+	Photo      string    `json:"photo"`
 	IsVerified bool      `json:"is_verified"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`

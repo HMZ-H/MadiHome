@@ -26,6 +26,18 @@ func (hvc *HomecareVisitController) CreateHomecareVisit(c *gin.Context) {
 		})
 		return
 	}
+
+	// Get doctor ID from JWT context
+	doctorIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, schema.ErrorResponse{
+			Success: false,
+			Message: "Unauthorized",
+		})
+		return
+	}
+	req.DoctorID = doctorIDRaw.(uint)
+
 	visit, err := hvc.homecareVisitUsecase.CreateHomecareVisit(&req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{
@@ -85,6 +97,34 @@ func (hvc *HomecareVisitController) GetHomecareVisitsByUserID(c *gin.Context) {
 		Success: true,
 		Message: "Homecare visits retrieved successfully",
 		Data:    visit,
+	})
+}
+
+// GetHomecareVisitsByDoctorID gets visits for the current doctor
+func (hvc *HomecareVisitController) GetHomecareVisitsByDoctorID(c *gin.Context) {
+	// Get doctor ID from JWT context
+	doctorIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, schema.ErrorResponse{
+			Success: false,
+			Message: "Unauthorized",
+		})
+		return
+	}
+	doctorID := doctorIDRaw.(uint)
+
+	visits, err := hvc.homecareVisitUsecase.GetHomecareVisitsByDoctorID(doctorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, schema.SuccessResponse{
+		Success: true,
+		Message: "Doctor visits retrieved successfully",
+		Data:    visits,
 	})
 }
 

@@ -1,7 +1,8 @@
-package usecases
+package Usecases
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	"github.com/HMZ-H/Madihome/Delivery/schema"
@@ -62,6 +63,9 @@ type UserUsecaseInterface interface {
 	GenerateVerificationToken(userID uint, email string) (string, error)
 	GenerateResetToken(userID uint, email string) (string, error)
 	DeleteUser(id uint) error
+	DeleteUserWithCascade(id uint) error
+	VerifyUserByID(userID string) (*schema.UserResponse, error)
+	UnverifyUser(userID string) (*schema.UserResponse, error)
 }
 
 func NewUserUsecase(repo repository.UserRepository, hash HashService, jwt GenerateToken, email EmailService) *UserUsecase {
@@ -83,6 +87,12 @@ func (uc *UserUsecase) Register(req *schema.CreateUserRequest) (*schema.UserResp
 		return nil, err
 	}
 
+	// Ensure role is always set
+	userRole := req.Role
+	if userRole == "" || userRole == "null" || userRole == "undefined" {
+		userRole = "user"
+	}
+
 	NewUser := &entity.User{
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
@@ -91,7 +101,7 @@ func (uc *UserUsecase) Register(req *schema.CreateUserRequest) (*schema.UserResp
 		Gender:    req.Gender,
 		Birthday:  req.Birthday,
 		Address:   req.Address,
-		Role:      req.Role,
+		Role:      userRole,
 		Password:  string(hashed),
 		CreatedAt: time.Now(),
 	}
@@ -117,6 +127,7 @@ func (uc *UserUsecase) RegisterGoogleUser(req *schema.CreateUserRequest) (*schem
 		Gender:     req.Gender,
 		Birthday:   req.Birthday,
 		Address:    req.Address,
+		Photo:      req.Photo,
 		Role:       req.Role,
 		Password:   "",   // No password for Google users
 		IsVerified: true, // Google users are automatically verified
@@ -137,12 +148,18 @@ func (uc *UserUsecase) Login(req *schema.LoginRequest) (accessToken string, refr
 	if !uc.hash.VerifyPassword(user.Password, req.Password) {
 		return "", "", nil, errors.New("invalid email or password")
 	}
+	// Ensure role is set (safety check)
+	userRole := user.Role
+	if userRole == "" || userRole == "null" || userRole == "undefined" {
+		userRole = "user"
+	}
+
 	// Generate JWT token
-	accessToken, err = uc.jwt.GenerateToken(user.ID, user.Email, user.Role)
+	accessToken, err = uc.jwt.GenerateToken(user.ID, user.Email, userRole)
 	if err != nil {
 		return "", "", nil, errors.New("failed to generate token")
 	}
-	refreshToken, err = uc.jwt.GenerateToken(user.ID, user.Email, user.Role)
+	refreshToken, err = uc.jwt.GenerateToken(user.ID, user.Email, userRole)
 	if err != nil {
 		return "", "", nil, errors.New("failed to generate token")
 	}
@@ -200,6 +217,9 @@ func (uc *UserUsecase) UpdateUser(userID uint, req *schema.UpdateUserRequest) (*
 		return nil, errors.New("user not found")
 	}
 
+	log.Printf("UpdateUser - User ID: %d, Photo URL from request: '%s'", userID, req.Photo)
+	log.Printf("UpdateUser - Current user photo: '%s'", user.Photo)
+
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
 	user.Email = req.Email
@@ -207,7 +227,10 @@ func (uc *UserUsecase) UpdateUser(userID uint, req *schema.UpdateUserRequest) (*
 	user.Gender = req.Gender
 	user.Birthday = req.Birthday
 	user.Address = req.Address
+	user.Photo = req.Photo
 	user.Role = req.Role
+
+	log.Printf("UpdateUser - Setting user.Photo to: '%s'", user.Photo)
 
 	updatedUser, err := uc.repo.UpdateUser(user)
 	if err != nil {
@@ -299,7 +322,89 @@ func (uc *UserUsecase) DeleteUser(userID uint) error {
 	return uc.repo.DeleteUser(userID)
 }
 
+func (uc *UserUsecase) DeleteUserWithCascade(userID uint) error {
+	// First verify user exists
+	_, err := uc.repo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all associated data in the correct order to avoid foreign key constraints
+	// 1. Delete refresh tokens
+	if err := uc.repo.DeleteRefreshTokensByUserID(userID); err != nil {
+		return err
+	}
+
+	// 2. Delete bookings (this will cascade to homecare visits)
+	if err := uc.repo.DeleteBookingsByUserID(userID); err != nil {
+		return err
+	}
+
+	// 3. Delete homecare plans
+	if err := uc.repo.DeleteHomecarePlansByUserID(userID); err != nil {
+		return err
+	}
+
+	// 4. Delete homecare visits (if any remain)
+	if err := uc.repo.DeleteHomecareVisitsByUserID(userID); err != nil {
+		return err
+	}
+
+	// 5. Delete doctor record if user is a doctor
+	if err := uc.repo.DeleteDoctorByUserID(userID); err != nil {
+		return err
+	}
+
+	// 6. Finally delete the user
+	return uc.repo.DeleteUser(userID)
+}
+
+// VerifyUserByID verifies a user by ID (admin function)
+func (uc *UserUsecase) VerifyUserByID(userID string) (*schema.UserResponse, error) {
+	user, err := uc.repo.GetUserByID(parseUint(userID))
+	if err != nil {
+		return nil, err
+	}
+
+	user.IsVerified = true
+	updatedUser, err := uc.repo.UpdateUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return toUserResponse(updatedUser), nil
+}
+
+// UnverifyUser unverifies a user by ID (admin function)
+func (uc *UserUsecase) UnverifyUser(userID string) (*schema.UserResponse, error) {
+	user, err := uc.repo.GetUserByID(parseUint(userID))
+	if err != nil {
+		return nil, err
+	}
+
+	user.IsVerified = false
+	updatedUser, err := uc.repo.UpdateUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return toUserResponse(updatedUser), nil
+}
+
+// Helper function to parse string to uint
+func parseUint(s string) uint {
+	// Simple implementation - in production, you'd want proper error handling
+	var result uint
+	for _, char := range s {
+		if char >= '0' && char <= '9' {
+			result = result*10 + uint(char-'0')
+		}
+	}
+	return result
+}
+
 func toUserResponse(user *entity.User) *schema.UserResponse {
+	log.Printf("toUserResponse - User ID: %d, Photo: '%s'", user.ID, user.Photo)
 	return &schema.UserResponse{
 		ID:         user.ID,
 		FirstName:  user.FirstName,
@@ -309,6 +414,7 @@ func toUserResponse(user *entity.User) *schema.UserResponse {
 		Gender:     user.Gender,
 		Birthday:   user.Birthday,
 		Address:    user.Address,
+		Photo:      user.Photo,
 		Role:       user.Role,
 		IsVerified: user.IsVerified,
 		CreatedAt:  user.CreatedAt,

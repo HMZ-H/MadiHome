@@ -13,7 +13,8 @@ type User struct {
 	Address    string    `json:"address"`
 	Gender     string    `json:"gender"`
 	Birthday   string    `json:"birthday"`
-	Role       string    `json:"role"`
+	Photo      string    `json:"photo"`
+	Role       string    `gorm:"default:'user'" json:"role"`
 	Password   string    `json:"-"`
 	IsVerified bool      `json:"is_verified"`
 	CreatedAt  time.Time `json:"created_at"`

@@ -38,10 +38,13 @@ func (a *AuthController) Register(c *gin.Context) {
 	// Debug: Log received request data
 	log.Printf("Received request: FirstName=%s, LastName=%s, Email=%s", req.FirstName, req.LastName, req.Email)
 
-	// Validate role
-	if req.Role == "" {
+	// Validate role - ensure it's always set
+	if req.Role == "" || req.Role == "null" || req.Role == "undefined" {
 		req.Role = "user"
 	}
+
+	// Log the role being set
+	log.Printf("Setting user role to: %s", req.Role)
 
 	user, err := a.userUsecase.Register(&req)
 	if err != nil {
@@ -227,27 +230,37 @@ func (a *AuthController) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement email verification logic
+	// Validate the verification token
 	claims, err := a.userUsecase.ValidateToken(token)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, schema.ErrorResponse{
-			Success: false,
-			Message: "Invalid verification token",
-		})
+		// Redirect to frontend with error
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:5173"
+		}
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("%s/verify-email/invalid", frontendURL))
 		return
 	}
+
+	// Verify the user
 	err = a.userUsecase.VerifyUser(uint(claims["user_id"].(float64)))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{
-			Success: false,
-			Message: "Failed to verify user",
-		})
+		// Redirect to frontend with error
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:5173"
+		}
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("%s/verify-email/error", frontendURL))
 		return
 	}
-	c.JSON(http.StatusOK, schema.SuccessResponse{
-		Success: true,
-		Message: "Email verified successfully",
-	})
+	// Redirect to frontend verification success page
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173" // Default to Vite dev server
+	}
+
+	// Redirect to the frontend verification page with the token
+	c.Redirect(http.StatusSeeOther, fmt.Sprintf("%s/verify-email/%s", frontendURL, token))
 
 }
 

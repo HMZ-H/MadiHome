@@ -27,6 +27,7 @@ func RequireRole(allowedRole ...string) gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
+
 		hasParmission := false
 		for _, allowed := range allowedRole {
 			if role == allowed {
