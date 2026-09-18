@@ -14,8 +14,20 @@ func SetupRouter(userController *controller.UserController,
 	homecarePlanController *controller.HomecarePlanController,
 	homecareVisitController *controller.HomecareVisitController,
 	bookingController *controller.BookingController,
+	notificationController *controller.NotificationController,
+	fileController *controller.FileController,
+	adminController *controller.AdminController,
+	roleRequestController *controller.RoleRequestController,
+	messageController *controller.MessageController,
+	aiController *controller.HomecareAIHandler,
+	wsController *controller.WSController,
 	jwtService *security.JWTService) *gin.Engine {
 	r := gin.Default()
+	// Do not trust any proxies by default to avoid security warning
+	_ = r.SetTrustedProxies(nil)
+
+	// Add CORS middleware
+	r.Use(middleware.CORSMiddleware())
 
 	// Public routes
 	public := r.Group("/api")
@@ -36,6 +48,13 @@ func SetupRouter(userController *controller.UserController,
 		// Public homecare service routes (for users to view available services)
 		public.GET("/services", homecareServiceController.GetAllHomecareServices)
 		public.GET("/services/:id", homecareServiceController.GetHomecareServiceByID)
+
+		// File upload routes
+		public.POST("/upload/photo", fileController.UploadPhoto)
+		public.GET("/uploads/photos/:filename", fileController.ServePhotos)
+
+		// WebSocket endpoint (token in query)
+		public.GET("/ws", wsController.HandleWS)
 	}
 
 	// Protected routes
@@ -49,7 +68,7 @@ func SetupRouter(userController *controller.UserController,
 
 	// User/Patient routes (authenticated users can view their own data)
 	user := protected.Group("/user")
-	user.Use(middleware.RequireUser())
+	user.Use(middleware.RequireRole("user", "doctor"))
 	{
 		// Users can create and view their own bookings
 		user.POST("/bookings", bookingController.CreateBooking)
@@ -61,6 +80,36 @@ func SetupRouter(userController *controller.UserController,
 		user.GET("/visits/:id", homecareVisitController.GetHomecareVisitByID)
 		user.GET("/care-plans", homecarePlanController.GetHomecarePlansByUser)
 		user.GET("/care-plans/:id", homecarePlanController.GetHomecarePlanByID)
+
+		// Users can delete their own account
+		user.DELETE("/account", userController.DeleteOwnAccount)
+
+		// Role request routes
+		user.POST("/role-requests", roleRequestController.CreateRoleRequest)
+		user.GET("/role-requests", roleRequestController.GetUserRoleRequests)
+		user.GET("/role-requests/:id", roleRequestController.GetRoleRequestByID)
+		user.DELETE("/role-requests/:id", roleRequestController.DeleteRoleRequest)
+
+		// Notification routes
+		user.GET("/notifications", notificationController.GetUserNotifications)
+		user.GET("/notifications/unread", notificationController.GetUnreadNotifications)
+		user.PUT("/notifications/:id/read", notificationController.MarkNotificationAsRead)
+		user.PUT("/notifications/read-all", notificationController.MarkAllNotificationsAsRead)
+		user.DELETE("/notifications/:id", notificationController.DeleteNotification)
+
+		// Message routes
+		user.POST("/messages", messageController.SendMessage)
+		user.GET("/messages/:id", messageController.GetMessageByID)
+		user.GET("/messages/room/:roomId", messageController.GetMessagesByRoom)
+		user.GET("/messages/conversation", messageController.GetMessagesBetweenUsers)
+		user.GET("/messages/room/:roomId/unread", messageController.GetUnreadMessagesByRoom)
+		user.PUT("/messages/:id/read", messageController.MarkMessageAsRead)
+		user.PUT("/messages/room/:roomId/read-all", messageController.MarkAllMessagesAsReadByRoom)
+		user.PUT("/messages/:id", messageController.UpdateMessage)
+		user.DELETE("/messages/:id", messageController.DeleteMessage)
+
+		// AI Assistant routes
+		user.POST("/ai/chat", aiController.HandleChat)
 	}
 
 	// Doctor-only routes (admin functions)
@@ -102,7 +151,7 @@ func SetupRouter(userController *controller.UserController,
 
 		// Homecare visit management (doctors can manage visits)
 		doctor.POST("/visits", homecareVisitController.CreateHomecareVisit)
-		doctor.GET("/visits", homecareVisitController.GetHomecareVisitsByUserID)
+		doctor.GET("/visits", homecareVisitController.GetHomecareVisitsByDoctorID)
 		doctor.GET("/visits/:id", homecareVisitController.GetHomecareVisitByID)
 		doctor.PUT("/visits/:id", homecareVisitController.UpdateHomecareVisit)
 		doctor.DELETE("/visits/:id", homecareVisitController.DeleteHomecareVisit)
@@ -113,12 +162,24 @@ func SetupRouter(userController *controller.UserController,
 	superAdmin.Use(middleware.RequireSuperAdmin())
 	{
 		// Super admin can see all users
-		superAdmin.GET("/users", userController.GetAllUsers)
+		superAdmin.GET("/users", adminController.GetAllUsers)
+		superAdmin.GET("/doctors", adminController.GetAllDoctors)
+		superAdmin.GET("/bookings", adminController.GetAllBookings)
+
+		// User management
+		superAdmin.PUT("/users/:id/verify", adminController.VerifyUser)
+		superAdmin.PUT("/users/:id/unverify", adminController.UnverifyUser)
+		superAdmin.DELETE("/users/:id", adminController.DeleteUser)
 
 		// Super admin can create/manage doctors
 		superAdmin.POST("/doctors", doctorController.CreateDoctor)
 		superAdmin.PUT("/doctors/:id", doctorController.UpdateDoctor)
 		superAdmin.DELETE("/doctors/:id", doctorController.DeleteDoctor)
+
+		// Role request management (admin only)
+		superAdmin.GET("/role-requests", roleRequestController.GetAllRoleRequests)
+		superAdmin.GET("/role-requests/pending", roleRequestController.GetPendingRoleRequests)
+		superAdmin.PUT("/role-requests/:id", roleRequestController.UpdateRoleRequest)
 	}
 
 	// Public doctor routes (for users to view doctors)
