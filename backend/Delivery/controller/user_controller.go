@@ -249,3 +249,54 @@ func (h *UserController) DeleteUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "User deleted"})
 }
+
+// Delete own account (for authenticated users to delete their own account)
+func (h *UserController) DeleteOwnAccount(c *gin.Context) {
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, schema.ErrorResponse{Message: "Unauthorized"})
+		return
+	}
+
+	userID := userIDRaw.(uint)
+
+	// Optional: Add password confirmation for extra security
+	var req struct {
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, schema.ErrorResponse{Message: "Password confirmation is required"})
+		return
+	}
+
+	// Verify password before deletion
+	// Create a temporary login request to verify password
+	tempReq := schema.LoginRequest{
+		Email:    "", // We'll get this from the user ID
+		Password: req.Password,
+	}
+
+	// Get user email first
+	user, err := h.userUsecase.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Message: "User not found"})
+		return
+	}
+
+	tempReq.Email = user.Email
+
+	// Verify password by attempting login
+	_, _, _, err = h.userUsecase.Login(&tempReq)
+	if err != nil {
+		c.JSON(http.StatusForbidden, schema.ErrorResponse{Message: "Invalid password"})
+		return
+	}
+
+	// Delete the user account and all associated data
+	if err := h.userUsecase.DeleteUserWithCascade(userID); err != nil {
+		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "Account deleted successfully"})
+}
