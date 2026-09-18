@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stethoscope, Heart, Shield, Clock, Users, Award } from 'lucide-react';
 
 export default function MedicalFeatures() {
