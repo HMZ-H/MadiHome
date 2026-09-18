@@ -50,6 +50,15 @@ func (r *HomecareVisitRepository) GetHomecareVisitsByUserID(userID uint) (*entit
 	return visits, nil
 }
 
+func (r *HomecareVisitRepository) GetHomecareVisitsByDoctorID(doctorID uint) ([]*entity.HomecareVisit, error) {
+	var visits []*entity.HomecareVisit
+	err := r.db.Preload("Patient").Preload("Service").Where("doctor_id = ?", doctorID).Find(&visits).Error
+	if err != nil {
+		return nil, err
+	}
+	return visits, nil
+}
+
 // func (r *HomecareVisitRepository) GetHomecareVisitsByUser(userID uint) ([]*entity.HomecareVisit, error) {
 // 	var visits []*entity.HomecareVisit
 // 	err := r.db.Preload("Doctor").Preload("Service").Where("patient_id = ?", userID).Find(&visits).Error
