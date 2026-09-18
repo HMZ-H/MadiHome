@@ -1,4 +1,4 @@
-package usecases
+package Usecases
 
 import (
 	"errors"
@@ -10,7 +10,8 @@ import (
 )
 
 type DoctorUsecase struct {
-	repo repository.DoctorRepository
+	repo     repository.DoctorRepository
+	userRepo repository.UserRepository
 }
 
 type DoctorUsecaseInterface interface {
@@ -22,14 +23,26 @@ type DoctorUsecaseInterface interface {
 	DeleteDoctor(id uint) error
 }
 
-func NewDoctorUsecase(repo repository.DoctorRepository) *DoctorUsecase {
-	return &DoctorUsecase{repo: repo}
+func NewDoctorUsecase(repo repository.DoctorRepository, userRepo repository.UserRepository) *DoctorUsecase {
+	return &DoctorUsecase{repo: repo, userRepo: userRepo}
 }
 
 func (uc *DoctorUsecase) CreateDoctor(req *schema.CreateDoctorRequest) (*schema.DoctorResponse, error) {
 	// Check if doctor already exists for this user
 	if exist, _ := uc.repo.GetDoctorByUserID(req.UserID); exist != nil {
 		return nil, errors.New("doctor profile already exists for this user")
+	}
+
+	// Update the user's role to 'doctor'
+	user, err := uc.userRepo.GetUserByID(req.UserID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	user.Role = "doctor"
+	_, err = uc.userRepo.UpdateUser(user)
+	if err != nil {
+		return nil, errors.New("failed to update user role")
 	}
 
 	newDoctor := &entity.Doctor{

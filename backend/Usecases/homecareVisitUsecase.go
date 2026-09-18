@@ -1,4 +1,4 @@
-package usecases
+package Usecases
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ type HomecareVisitUsecase struct {
 type HomecareVisitUsecaseInterface interface {
 	CreateHomecareVisit(req *schema.ScheduleVisitRequest) (*schema.HomecareVisitResponse, error)
 	GetHomecareVisitByID(id uint) (*schema.HomecareVisitResponse, error)
-	// GetHomecareVisitsByDoctor(doctorID uint) ([]*schema.HomecareVisitResponse, error)
+	GetHomecareVisitsByDoctorID(doctorID uint) ([]*schema.HomecareVisitResponse, error)
 	GetHomecareVisitsByUserID(userID uint) (*schema.HomecareVisitResponse, error)
 	UpdateHomecareVisit(id uint, req *schema.UpdateVisitRequest) (*schema.HomecareVisitResponse, error)
 	DeleteHomecareVisit(id uint) error
@@ -83,6 +83,19 @@ func (uc *HomecareVisitUsecase) GetHomecareVisitsByUserID(userID uint) (*schema.
 		return nil, errors.New("visits not found")
 	}
 	return toHomecareVisitResponse(visits), nil
+}
+
+func (uc *HomecareVisitUsecase) GetHomecareVisitsByDoctorID(doctorID uint) ([]*schema.HomecareVisitResponse, error) {
+	visits, err := uc.repo.GetHomecareVisitsByDoctorID(doctorID)
+	if err != nil {
+		return nil, errors.New("visits not found")
+	}
+
+	var responses []*schema.HomecareVisitResponse
+	for _, visit := range visits {
+		responses = append(responses, toHomecareVisitResponse(visit))
+	}
+	return responses, nil
 }
 
 func (uc *HomecareVisitUsecase) UpdateHomecareVisit(id uint, req *schema.UpdateVisitRequest) (*schema.HomecareVisitResponse, error) {

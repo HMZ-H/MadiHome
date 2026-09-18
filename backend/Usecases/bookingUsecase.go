@@ -1,4 +1,4 @@
-package usecases
+package Usecases
 
 import (
 	"errors"
@@ -21,6 +21,7 @@ type BookingUsecaseInterface interface {
 	GetBookingsByUserID(userID uint) ([]*schema.BookingResponse, error)
 	GetBookingsByDoctorID(doctorID uint) ([]*schema.BookingResponse, error)
 	GetBookingsByStatus(status string) ([]*schema.BookingResponse, error)
+	GetAllBookings() ([]*schema.BookingResponse, error)
 	UpdateBooking(id uint, req *schema.UpdateBookingRequest) (*schema.BookingResponse, error)
 	CompleteBooking(id uint, req *schema.CompleteBookingRequest) (*schema.BookingResponse, error)
 	DeleteBooking(id uint) error
@@ -132,9 +133,8 @@ func (uc *BookingUsecase) UpdateBooking(id uint, req *schema.UpdateBookingReques
 	booking.UpdatedAt = time.Now()
 
 	// If accepting booking, set doctor ID
-	if req.Status == "accepted" {
-		// This should be set by the controller from JWT context
-		// booking.DoctorID = doctorID
+	if req.Status == "accepted" && req.DoctorID != nil {
+		booking.DoctorID = req.DoctorID
 	}
 
 	updatedBooking, err := uc.bookingRepo.UpdateBooking(booking)
@@ -238,4 +238,19 @@ func toBookingResponse(booking *entity.Booking) *schema.BookingResponse {
 	}
 
 	return response
+}
+
+// GetAllBookings returns all bookings for admin dashboard
+func (uc *BookingUsecase) GetAllBookings() ([]*schema.BookingResponse, error) {
+	bookings, err := uc.bookingRepo.GetAllBookings()
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []*schema.BookingResponse
+	for _, booking := range bookings {
+		responses = append(responses, toBookingResponse(booking))
+	}
+
+	return responses, nil
 }
