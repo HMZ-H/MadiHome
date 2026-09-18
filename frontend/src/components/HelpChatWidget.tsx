@@ -3,7 +3,7 @@ import ChatHubModal from './ChatHubModal';
 
 export default function HelpChatWidget() {
   const [modalOpen, setModalOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [unread] = useState(0);
 
   return (
     <>

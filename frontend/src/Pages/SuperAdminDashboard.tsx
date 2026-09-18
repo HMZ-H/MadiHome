@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  UserCheck, 
-  Calendar, 
-  Activity, 
-  Shield, 
-  Settings,
+import {
+  Users,
+  UserCheck,
+  Calendar,
+  Activity,
   BarChart3,
-  TrendingUp,
   AlertTriangle,
   CheckCircle,
   Clock,
-  UserX,
-  Mail,
-  Phone,
-  MapPin,
   Edit,
-  Trash2,
   Eye,
-  Filter,
   Search
 } from 'lucide-react';
 
@@ -307,7 +298,7 @@ const SuperAdminDashboard: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setSelectedTab(tab.id as any)}
+                onClick={() => setSelectedTab(tab.id as typeof selectedTab)}
                 className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                   selectedTab === tab.id
                     ? 'border-emerald-500 text-emerald-600'

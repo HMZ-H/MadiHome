@@ -34,7 +34,7 @@ function getRoleFromStorageOrToken(): string {
     const payload = token.split('.')[1];
     const json = JSON.parse(atob(payload));
     return (json?.role || '').toLowerCase();
-  } catch (_) {
+  } catch {
     return '';
   }
 }

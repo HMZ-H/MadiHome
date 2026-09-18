@@ -34,6 +34,7 @@ export default function TrustedDoctors() {
         if (response.ok) {
           const data = await response.json();
           // Transform the data to match our interface
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const transformedDoctors = data.data?.map((doctor: any) => ({
             id: doctor.id,
             first_name: doctor.user?.first_name || 'Dr.',

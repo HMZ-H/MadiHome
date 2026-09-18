@@ -36,6 +36,7 @@ export default function DoctorProfile() {
       try {
         setLoading(true);
         setError(null);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8080';
         const res = await fetch(`${API_BASE_URL}/api/doctors/${id}`);
         if (!res.ok) throw new Error('Failed to load doctor');
@@ -81,7 +82,6 @@ export default function DoctorProfile() {
             <div className="md:w-1/3">
               <div className="rounded-xl overflow-hidden border border-gray-200">
                 {/* Photo */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={doctor.photo_url || doctor.user?.photo_url || '/placeholder-doctor.jpg'} alt={displayName} className="w-full h-64 object-cover" />
               </div>
             </div>

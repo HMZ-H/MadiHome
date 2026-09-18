@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 type Toast = { id: number; type: 'success' | 'error' | 'info'; message: string };

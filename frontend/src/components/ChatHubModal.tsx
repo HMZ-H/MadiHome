@@ -122,6 +122,7 @@ export default function ChatHubModal({
             setSidebarLabel("Doctors");
             if (ddata.length > 0 && !selectedDoctorUserId) {
               const me = Number(localStorage.getItem("user_id"));
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const firstOther = ddata.find((x: any) => (x.user_id || x.user?.id) !== me);
               const uid = firstOther ? (firstOther.user_id || firstOther.user?.id || null) : null;
               if (uid) setSelectedDoctorUserId(uid);
@@ -152,6 +153,7 @@ export default function ChatHubModal({
       }
     }
     if (changed) setRecentContacts(Array.from(seen));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, isOpen, mode]);
 
   // If no selection yet, auto-select the most recent contact from WS

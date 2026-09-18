@@ -103,6 +103,7 @@ export function useChatSocket({ roomId }: UseChatSocketOptions = {}) {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       wsRef.current?.close();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, roomId]);
 
   const send = useCallback(
