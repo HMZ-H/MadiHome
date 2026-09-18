@@ -5,16 +5,23 @@ import (
 	"strconv"
 
 	"github.com/HMZ-H/Madihome/Delivery/schema"
+	"github.com/HMZ-H/Madihome/Domain/repository"
 	usecases "github.com/HMZ-H/Madihome/Usecases"
 	"github.com/gin-gonic/gin"
 )
 
 type BookingController struct {
-	bookingUsecase *usecases.BookingUsecase
+	bookingUsecase      *usecases.BookingUsecase
+	doctorRepo          repository.DoctorRepository
+	notificationUsecase *usecases.NotificationUsecase
 }
 
-func NewBookingController(bookingUsecase *usecases.BookingUsecase) *BookingController {
-	return &BookingController{bookingUsecase: bookingUsecase}
+func NewBookingController(bookingUsecase *usecases.BookingUsecase, doctorRepo repository.DoctorRepository, notificationUsecase *usecases.NotificationUsecase) *BookingController {
+	return &BookingController{
+		bookingUsecase:      bookingUsecase,
+		doctorRepo:          doctorRepo,
+		notificationUsecase: notificationUsecase,
+	}
 }
 
 // Patient creates a booking
@@ -47,6 +54,16 @@ func (bc *BookingController) CreateBooking(c *gin.Context) {
 		})
 		return
 	}
+
+	// Send notification to doctors about new booking
+	go func() {
+		// Fetch the full booking entity with relations for notification
+		fullBooking, err := bc.bookingUsecase.GetBookingByID(booking.ID)
+		if err != nil {
+			return // Log error but don't block response
+		}
+		bc.notificationUsecase.NotifyNewBooking(fullBooking.ToEntity())
+	}()
 
 	c.JSON(http.StatusCreated, schema.SuccessResponse{
 		Success: true,
@@ -167,6 +184,17 @@ func (bc *BookingController) UpdateBooking(c *gin.Context) {
 		return
 	}
 
+	// Get user ID from JWT context
+	userIDRaw, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, schema.ErrorResponse{
+			Success: false,
+			Message: "Unauthorized",
+		})
+		return
+	}
+	userID := userIDRaw.(uint)
+
 	var req schema.UpdateBookingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, schema.ErrorResponse{
@@ -176,6 +204,19 @@ func (bc *BookingController) UpdateBooking(c *gin.Context) {
 		return
 	}
 
+	// Find the doctor ID for this user
+	doctor, err := bc.doctorRepo.GetDoctorByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, schema.ErrorResponse{
+			Success: false,
+			Message: "Doctor profile not found. Please complete your doctor profile first.",
+		})
+		return
+	}
+
+	// Add doctor ID to the request
+	req.DoctorID = &doctor.ID
+
 	booking, err := bc.bookingUsecase.UpdateBooking(uint(bookingID), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{
@@ -184,6 +225,22 @@ func (bc *BookingController) UpdateBooking(c *gin.Context) {
 		})
 		return
 	}
+
+	// Send notification to patient about booking status update
+	go func() {
+		// Fetch the full booking entity with relations for notification
+		fullBooking, err := bc.bookingUsecase.GetBookingByID(uint(bookingID))
+		if err != nil {
+			return // Log error but don't block response
+		}
+
+		// Send appropriate notification based on status
+		if req.Status == "accepted" {
+			bc.notificationUsecase.NotifyBookingAccepted(fullBooking.ToEntity())
+		} else if req.Status == "rejected" {
+			bc.notificationUsecase.NotifyBookingRejected(fullBooking.ToEntity())
+		}
+	}()
 
 	c.JSON(http.StatusOK, schema.SuccessResponse{
 		Success: true,
