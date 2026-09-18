@@ -10,4 +10,11 @@ type UserRepository interface {
 	GetUsersByRole(role string) ([]*entity.User, error)
 	UpdateUser(user *entity.User) (*entity.User, error)
 	DeleteUser(id uint) error
+
+	// Cascade deletion methods
+	DeleteRefreshTokensByUserID(userID uint) error
+	DeleteBookingsByUserID(userID uint) error
+	DeleteHomecarePlansByUserID(userID uint) error
+	DeleteHomecareVisitsByUserID(userID uint) error
+	DeleteDoctorByUserID(userID uint) error
 }
