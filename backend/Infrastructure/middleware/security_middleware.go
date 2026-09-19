@@ -3,42 +3,70 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
-// RateLimiter stores rate limiters for different endpoints
+type visitor struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
 type RateLimiter struct {
-	limiters map[string]*rate.Limiter
+	visitors map[string]*visitor
+	mu       sync.Mutex
+	rps      rate.Limit
+	burst    int
 }
 
-// NewRateLimiter creates a new rate limiter
-func NewRateLimiter() *RateLimiter {
-	return &RateLimiter{
-		limiters: make(map[string]*rate.Limiter),
+func NewRateLimiter(requestsPerMinute int) *RateLimiter {
+	rl := &RateLimiter{
+		visitors: make(map[string]*visitor),
+		rps:      rate.Every(time.Minute / time.Duration(requestsPerMinute)),
+		burst:    requestsPerMinute,
 	}
+	go rl.cleanup()
+	return rl
 }
 
-// GetLimiter returns a rate limiter for the given key
-func (rl *RateLimiter) GetLimiter(key string, requestsPerMinute int) *rate.Limiter {
-	if limiter, exists := rl.limiters[key]; exists {
+func (rl *RateLimiter) getVisitor(ip string) *rate.Limiter {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	v, exists := rl.visitors[ip]
+	if !exists {
+		limiter := rate.NewLimiter(rl.rps, rl.burst)
+		rl.visitors[ip] = &visitor{limiter: limiter, lastSeen: time.Now()}
 		return limiter
 	}
-
-	limiter := rate.NewLimiter(rate.Every(time.Minute/time.Duration(requestsPerMinute)), requestsPerMinute)
-	rl.limiters[key] = limiter
-	return limiter
+	v.lastSeen = time.Now()
+	return v.limiter
 }
 
-// RateLimit middleware for API endpoints
+func (rl *RateLimiter) cleanup() {
+	for {
+		time.Sleep(3 * time.Minute)
+		rl.mu.Lock()
+		for ip, v := range rl.visitors {
+			if time.Since(v.lastSeen) > 5*time.Minute {
+				delete(rl.visitors, ip)
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
+// RateLimit middleware for API endpoints.
+// requestsPerMinute controls both the sustained rate and initial burst.
 func RateLimit(requestsPerMinute int) gin.HandlerFunc {
-	limiter := NewRateLimiter()
+	rl := NewRateLimiter(requestsPerMinute)
 
 	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
-		limiter := limiter.GetLimiter(clientIP, requestsPerMinute)
+		ip := c.ClientIP()
+		limiter := rl.getVisitor(ip)
 
 		if !limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
