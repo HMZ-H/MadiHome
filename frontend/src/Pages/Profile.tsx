@@ -20,7 +20,6 @@ interface User {
 }
 
 export default function Profile() {
-  console.log('Profile component rendered');
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -41,17 +40,13 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    console.log('Profile useEffect running');
     
     // Simple check for user data
     const userData = localStorage.getItem('user');
-    console.log('User data from localStorage:', userData);
     
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
-        console.log('Profile - Parsed user:', parsedUser);
-        console.log('Profile - User photo from localStorage:', parsedUser.photo);
         setUser(parsedUser);
         setFormData({
           first_name: parsedUser.first_name || '',
@@ -68,7 +63,6 @@ export default function Profile() {
         setUser(null);
       }
     } else {
-      console.log('No user data found');
       setUser(null);
     }
     
@@ -94,7 +88,6 @@ export default function Profile() {
       const result = await uploadPhoto(file);
       
       if (result.success && result.url) {
-        console.log('Photo upload successful, setting formData.photo to:', result.url);
         setFormData(prev => ({
           ...prev,
           photo: result.url!
@@ -126,12 +119,6 @@ export default function Profile() {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       const url = `${apiBaseUrl}/api/users/${user.id}`;
       
-      console.log("Updating profile:");
-      console.log("URL:", url);
-      console.log("User ID:", user.id);
-      console.log("Form Data:", formData);
-      console.log("Token exists:", !!token);
-
       // Convert camelCase to snake_case for backend
       const requestData = {
         first_name: formData.first_name,
@@ -145,8 +132,6 @@ export default function Profile() {
         role: user.role // Preserve the user's role
       };
 
-      console.log("Request data:", requestData);
-
       const response = await fetch(url, {
         method: "PUT",
         headers: {
@@ -156,17 +141,12 @@ export default function Profile() {
         body: JSON.stringify(requestData)
       });
 
-      console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API Error Response:", errorText);
         throw new Error(`Failed to update profile: ${response.status} - ${errorText}`);
       }
       
       const responseData = await response.json();
-      console.log("API Response:", responseData);
 
       // Handle the response structure - backend returns {success, message, data}
       let updatedUser;
@@ -176,8 +156,6 @@ export default function Profile() {
         // Fallback: use the response directly if it's already the user object
         updatedUser = responseData;
       }
-
-      console.log("Updated user data:", updatedUser);
 
       // Update frontend state with photo and preserve role
       const updatedUserWithPhoto = { 
@@ -198,7 +176,6 @@ export default function Profile() {
 
   const handleCancel = () => {
     if (user) {
-      console.log('Canceling edit - resetting formData.photo to user.photo:', user.photo);
       setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
@@ -232,12 +209,6 @@ export default function Profile() {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       const deleteUrl = `${apiBaseUrl}/api/user/account`;
       
-      console.log('Delete account request:', {
-        url: deleteUrl,
-        method: 'DELETE',
-        hasToken: !!token
-      });
-      
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
@@ -249,12 +220,6 @@ export default function Profile() {
         })
       });
       
-      console.log('Delete account response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
