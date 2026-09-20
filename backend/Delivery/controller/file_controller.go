@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"encoding/hex"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,6 +11,35 @@ import (
 	"github.com/HMZ-H/Madihome/Infrastructure/storage"
 	"github.com/gin-gonic/gin"
 )
+
+const maxUploadSize = 5 * 1024 * 1024 // 5MB
+
+var allowedMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+var allowedExtensions = map[string]bool{
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".gif":  true,
+	".webp": true,
+}
+
+// Magic bytes for allowed image formats
+var magicHeaders = []struct {
+	mime   string
+	magic  []byte
+	offset int
+}{
+	{"image/jpeg", []byte{0xFF, 0xD8, 0xFF}, 0},
+	{"image/png", []byte{0x89, 0x50, 0x4E, 0x47}, 0},
+	{"image/gif", []byte("GIF8"), 0},
+	{"image/webp", []byte("RIFF"), 0},
+}
 
 type FileController struct {
 	storageService storage.StorageService
@@ -20,37 +51,95 @@ func NewFileController(storageService storage.StorageService) *FileController {
 	}
 }
 
-// UploadPhoto handles photo uploads
 func (fc *FileController) UploadPhoto(c *gin.Context) {
-	// Get the file from the request
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadSize+512)
+
 	file, header, err := c.Request.FormFile("photo")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		if err.Error() == "http: request body too large" {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"success": false,
+				"message": "File size must be less than 5MB",
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "No file uploaded",
+		})
 		return
 	}
 	defer file.Close()
 
-	// Validate file type
+	if header.Size > maxUploadSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"success": false,
+			"message": "File size must be less than 5MB",
+		})
+		return
+	}
+
+	// Validate extension
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if !allowedExtensions[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Allowed file types: JPEG, PNG, GIF, WebP",
+		})
+		return
+	}
+
+	// Read first 12 bytes for magic number validation
+	head := make([]byte, 12)
+	n, err := io.ReadFull(file, head)
+	if err != nil && n < 4 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Could not read file",
+		})
+		return
+	}
+	head = head[:n]
+
+	if !validateMagicBytes(head) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File content does not match an allowed image format",
+		})
+		return
+	}
+
+	// Rewind file for upload
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to process file",
+		})
+		return
+	}
+
+	// Validate declared Content-Type matches
 	contentType := header.Header.Get("Content-Type")
-	if !strings.HasPrefix(contentType, "image/") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File must be an image"})
-		return
+	if !allowedMimeTypes[contentType] {
+		contentType = http.DetectContentType(head)
+		if !allowedMimeTypes[contentType] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "File must be a valid image (JPEG, PNG, GIF, WebP)",
+			})
+			return
+		}
 	}
 
-	// Validate file size (max 10MB for production)
-	if header.Size > 10*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File size must be less than 10MB"})
-		return
-	}
-
-	// Use cloud storage service
 	result, err := fc.storageService.UploadFile(file, header, "photos")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload file",
+		})
 		return
 	}
 
-	// Return the file URL
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "File uploaded successfully",
@@ -62,16 +151,40 @@ func (fc *FileController) UploadPhoto(c *gin.Context) {
 	})
 }
 
-// ServePhotos serves uploaded photos
 func (fc *FileController) ServePhotos(c *gin.Context) {
-	filename := c.Param("filename")
-	filepath := filepath.Join("uploads/photos", filename)
+	filename := filepath.Base(c.Param("filename"))
 
-	// Check if file exists
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+	// Reject path traversal attempts
+	if filename == "." || filename == ".." || strings.ContainsAny(filename, `/\`) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid filename",
+		})
 		return
 	}
 
-	c.File(filepath)
+	path := filepath.Join("uploads/photos", filename)
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "File not found",
+		})
+		return
+	}
+
+	c.File(path)
+}
+
+func validateMagicBytes(head []byte) bool {
+	for _, m := range magicHeaders {
+		end := m.offset + len(m.magic)
+		if end > len(head) {
+			continue
+		}
+		if hex.EncodeToString(head[m.offset:end]) == hex.EncodeToString(m.magic) {
+			return true
+		}
+	}
+	return false
 }
