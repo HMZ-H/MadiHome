@@ -188,6 +188,42 @@ func (fc *FileController) ServePhotos(c *gin.Context) {
 	c.File(path)
 }
 
+func (fc *FileController) ServeDocuments(c *gin.Context) {
+	filename := filepath.Base(c.Param("filename"))
+
+	if filename == "." || filename == ".." || strings.ContainsAny(filename, `/\`) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid filename",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	if !allowedDocExtensions[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid document type",
+		})
+		return
+	}
+
+	path := filepath.Join("uploads/documents", filename)
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Document not found",
+		})
+		return
+	}
+
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Content-Security-Policy", "default-src 'none'")
+	c.Header("Content-Disposition", "inline; filename=\""+filename+"\"")
+	c.File(path)
+}
+
 var docMagicHeaders = []struct {
 	mime   string
 	magic  []byte
