@@ -51,6 +51,7 @@ func SetupRouter(userController *controller.UserController,
 
 		// File serving (public, read-only)
 		public.GET("/uploads/photos/:filename", fileController.ServePhotos)
+		public.GET("/uploads/documents/:filename", fileController.ServeDocuments)
 
 		// WebSocket endpoint (token in query)
 		public.GET("/ws", wsController.HandleWS)
