@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Logo from "../components/Logo";
 import { uploadPhoto } from "../utils/photoUpload";
+import { getAcceptString } from "../utils/fileValidation";
 
 interface User {
   id: number;
@@ -396,7 +397,7 @@ export default function Profile() {
                     <label className="absolute -bottom-2 -right-2 bg-emerald-600 text-white rounded-full p-2 cursor-pointer hover:bg-emerald-700 transition-colors shadow-lg">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept={getAcceptString('image')}
                         onChange={handlePhotoUpload}
                         className="hidden"
                         disabled={isUploadingPhoto}
