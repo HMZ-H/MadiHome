@@ -46,7 +46,12 @@ func createMultipartRequest(t *testing.T, fieldName, filename string, content []
 	}
 	writer.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/upload/photo", body)
+	path := "/upload/photo"
+	if fieldName == "document" {
+		path = "/upload/document"
+	}
+
+	req := httptest.NewRequest(http.MethodPost, path, body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	return req
 }
@@ -56,6 +61,7 @@ func setupRouter() (*gin.Engine, *FileController) {
 	r := gin.New()
 	fc := NewFileController(&mockStorageService{})
 	r.POST("/upload/photo", fc.UploadPhoto)
+	r.POST("/upload/document", fc.UploadDocument)
 	r.GET("/uploads/photos/:filename", fc.ServePhotos)
 	return r, fc
 }
@@ -174,6 +180,48 @@ func TestServePhotos_PathTraversal(t *testing.T) {
 		if w.Code == http.StatusOK {
 			t.Errorf("path traversal should not return 200 for %q", tc)
 		}
+	}
+}
+
+func TestUploadDocument_ValidPDF(t *testing.T) {
+	r, _ := setupRouter()
+
+	pdfContent := []byte("%PDF-1.4 fake pdf content here")
+	req := createMultipartRequest(t, "document", "report.pdf", pdfContent, "application/pdf")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid PDF, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUploadDocument_InvalidExtension(t *testing.T) {
+	r, _ := setupRouter()
+
+	pdfContent := []byte("%PDF-1.4 fake pdf content")
+	req := createMultipartRequest(t, "document", "report.docx", pdfContent, "application/pdf")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for .docx extension, got %d", w.Code)
+	}
+}
+
+func TestUploadDocument_FakeContent(t *testing.T) {
+	r, _ := setupRouter()
+
+	fakeContent := []byte("This is not a PDF file at all")
+	req := createMultipartRequest(t, "document", "fake.pdf", fakeContent, "application/pdf")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for fake PDF content, got %d", w.Code)
 	}
 }
 
