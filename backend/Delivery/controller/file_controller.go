@@ -12,7 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const maxUploadSize = 5 * 1024 * 1024 // 5MB
+const maxPhotoSize = 5 * 1024 * 1024  // 5MB
+const maxDocumentSize = 10 * 1024 * 1024 // 10MB
 
 var allowedMimeTypes = map[string]bool{
 	"image/jpeg": true,
@@ -27,6 +28,14 @@ var allowedExtensions = map[string]bool{
 	".png":  true,
 	".gif":  true,
 	".webp": true,
+}
+
+var allowedDocMimeTypes = map[string]bool{
+	"application/pdf": true,
+}
+
+var allowedDocExtensions = map[string]bool{
+	".pdf": true,
 }
 
 // Magic bytes for allowed image formats
@@ -52,7 +61,7 @@ func NewFileController(storageService storage.StorageService) *FileController {
 }
 
 func (fc *FileController) UploadPhoto(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadSize+512)
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxPhotoSize+512)
 
 	file, header, err := c.Request.FormFile("photo")
 	if err != nil {
@@ -71,7 +80,7 @@ func (fc *FileController) UploadPhoto(c *gin.Context) {
 	}
 	defer file.Close()
 
-	if header.Size > maxUploadSize {
+	if header.Size > maxPhotoSize {
 		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
 			"success": false,
 			"message": "File size must be less than 5MB",
@@ -176,8 +185,108 @@ func (fc *FileController) ServePhotos(c *gin.Context) {
 	c.File(path)
 }
 
+var docMagicHeaders = []struct {
+	mime   string
+	magic  []byte
+	offset int
+}{
+	{"application/pdf", []byte("%PDF"), 0},
+}
+
+func (fc *FileController) UploadDocument(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxDocumentSize+512)
+
+	file, header, err := c.Request.FormFile("document")
+	if err != nil {
+		if err.Error() == "http: request body too large" {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"success": false,
+				"message": "File size must be less than 10MB",
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "No file uploaded",
+		})
+		return
+	}
+	defer file.Close()
+
+	if header.Size > maxDocumentSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"success": false,
+			"message": "File size must be less than 10MB",
+		})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if !allowedDocExtensions[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Allowed document types: PDF",
+		})
+		return
+	}
+
+	head := make([]byte, 12)
+	n, err := io.ReadFull(file, head)
+	if err != nil && n < 4 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Could not read file",
+		})
+		return
+	}
+	head = head[:n]
+
+	if !validateMagicBytesWithHeaders(head, docMagicHeaders) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File content does not match an allowed document format",
+		})
+		return
+	}
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to process file",
+		})
+		return
+	}
+
+	result, err := fc.storageService.UploadFile(file, header, "documents")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload document",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Document uploaded successfully",
+		"data": gin.H{
+			"url":      result.URL,
+			"filename": result.Key,
+			"size":     result.Size,
+		},
+	})
+}
+
 func validateMagicBytes(head []byte) bool {
-	for _, m := range magicHeaders {
+	return validateMagicBytesWithHeaders(head, magicHeaders)
+}
+
+func validateMagicBytesWithHeaders(head []byte, headers []struct {
+	mime   string
+	magic  []byte
+	offset int
+}) bool {
+	for _, m := range headers {
 		end := m.offset + len(m.magic)
 		if end > len(head) {
 			continue
