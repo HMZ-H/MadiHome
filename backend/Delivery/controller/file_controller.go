@@ -182,6 +182,9 @@ func (fc *FileController) ServePhotos(c *gin.Context) {
 		return
 	}
 
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Content-Security-Policy", "default-src 'none'")
+	c.Header("Cache-Control", "public, max-age=86400")
 	c.File(path)
 }
 
