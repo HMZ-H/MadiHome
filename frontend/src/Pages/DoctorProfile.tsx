@@ -81,7 +81,6 @@ export default function DoctorProfile() {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="md:w-1/3">
               <div className="rounded-xl overflow-hidden border border-gray-200">
-                {/* Photo */}
                 <img src={doctor.photo_url || doctor.user?.photo_url || '/placeholder-doctor.jpg'} alt={displayName} className="w-full h-64 object-cover" />
               </div>
             </div>

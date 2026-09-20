@@ -230,8 +230,8 @@ export default function Profile() {
           try {
             const errorText = await response.text();
             errorMessage = errorText || errorMessage;
-          } catch (textError) {
-            console.error('Failed to parse error response:', textError);
+          } catch (_textError) {
+            // response body already consumed
           }
         }
         throw new Error(errorMessage);
