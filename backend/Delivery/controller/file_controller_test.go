@@ -225,6 +225,51 @@ func TestUploadDocument_FakeContent(t *testing.T) {
 	}
 }
 
+func TestUploadPhoto_ValidGIF(t *testing.T) {
+	r, _ := setupRouter()
+
+	gifMagic := []byte("GIF89a")
+	content := append(gifMagic, make([]byte, 100)...)
+	req := createMultipartRequest(t, "photo", "anim.gif", content, "image/gif")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid GIF, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUploadPhoto_ValidWebP(t *testing.T) {
+	r, _ := setupRouter()
+
+	webpContent := []byte("RIFF\x00\x00\x00\x00WEBP")
+	content := append(webpContent, make([]byte, 100)...)
+	req := createMultipartRequest(t, "photo", "image.webp", content, "image/webp")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid WebP, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUploadPhoto_DoubleExtension(t *testing.T) {
+	r, _ := setupRouter()
+
+	content := []byte("MZ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+	req := createMultipartRequest(t, "photo", "malware.exe.jpg", content, "image/jpeg")
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should fail because magic bytes don't match
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for double extension attack, got %d", w.Code)
+	}
+}
+
 func TestValidateMagicBytes(t *testing.T) {
 	tests := []struct {
 		name  string
