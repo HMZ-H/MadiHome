@@ -49,8 +49,7 @@ func SetupRouter(userController *controller.UserController,
 		public.GET("/services", homecareServiceController.GetAllHomecareServices)
 		public.GET("/services/:id", homecareServiceController.GetHomecareServiceByID)
 
-		// File upload routes
-		public.POST("/upload/photo", fileController.UploadPhoto)
+		// File serving (public, read-only)
 		public.GET("/uploads/photos/:filename", fileController.ServePhotos)
 
 		// WebSocket endpoint (token in query)
@@ -64,6 +63,10 @@ func SetupRouter(userController *controller.UserController,
 		protected.GET("/me", userController.Me)
 		protected.PUT("/users/:id", userController.UpdateUser)
 		protected.POST("/users/:id/change-password", userController.ChangePassword)
+
+		// File upload (requires authentication)
+		protected.POST("/upload/photo", fileController.UploadPhoto)
+		protected.POST("/upload/document", fileController.UploadDocument)
 	}
 
 	// User/Patient routes (authenticated users can view their own data)
