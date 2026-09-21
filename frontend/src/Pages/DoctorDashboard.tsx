@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../components/Toast';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
@@ -6,6 +6,7 @@ import InteractiveMap from '../components/InteractiveMap';
 import NotificationBell from '../components/NotificationBell';
 import AddServiceForm from '../components/AddServiceForm';
 import ScheduleVisitForm from '../components/ScheduleVisitForm';
+import { Search } from 'lucide-react';
 
 
 interface DoctorStats {
@@ -95,6 +96,19 @@ export default function DoctorDashboard() {
   const [bookingToReject, setBookingToReject] = useState<number | null>(null);
   const [showDeleteServiceConfirm, setShowDeleteServiceConfirm] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('');
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const matchesSearch = !bookingSearch ||
+        b.patient_name.toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        b.service_name.toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        b.patient_address.toLowerCase().includes(bookingSearch.toLowerCase());
+      const matchesStatus = !bookingStatusFilter || b.status === bookingStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, bookingSearch, bookingStatusFilter]);
   const [showAddVisitForm, setShowAddVisitForm] = useState(false);
   const [visitToEdit, setVisitToEdit] = useState<Visit | null>(null);
   const [showEditVisitForm, setShowEditVisitForm] = useState(false);
@@ -1013,6 +1027,30 @@ export default function DoctorDashboard() {
               <p className="text-sm text-gray-600 mt-1">
                 Manage patient booking requests. Accept pending bookings or reject them with confirmation.
               </p>
+              <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search patient, service, address..."
+                    value={bookingSearch}
+                    onChange={(e) => setBookingSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={bookingStatusFilter}
+                  onChange={(e) => setBookingStatusFilter(e.target.value)}
+                  className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                >
+                  <option value="">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -1033,14 +1071,14 @@ export default function DoctorDashboard() {
                         Loading bookings...
                   </td>
                 </tr>
-                  ) : bookings.length === 0 ? (
+                  ) : filteredBookings.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                        No bookings found
+                        {bookingSearch || bookingStatusFilter ? 'No bookings match your filters' : 'No bookings found'}
                       </td>
                     </tr>
                   ) : (
-                    bookings.map((booking) => (
+                    filteredBookings.map((booking) => (
                       <tr key={booking.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{booking.patient_name}</div>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Star, MapPin, ArrowRight, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Star, MapPin, ArrowRight, X, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface Doctor {
@@ -20,6 +20,24 @@ export default function TrustedDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [specialtyFilter, setSpecialtyFilter] = useState('');
+
+  const specialties = useMemo(() => {
+    const set = new Set(doctors.map(d => d.specialty));
+    return Array.from(set).sort();
+  }, [doctors]);
+
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter(d => {
+      const matchesSearch = !searchQuery ||
+        `${d.first_name} ${d.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.bio.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSpecialty = !specialtyFilter || d.specialty === specialtyFilter;
+      return matchesSearch && matchesSpecialty;
+    });
+  }, [doctors, searchQuery, specialtyFilter]);
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -43,7 +61,7 @@ export default function TrustedDoctors() {
             is_available: Math.random() > 0.3,
             consultation_fee: Math.floor(Math.random() * 150) + 80,
           })) || [];
-          setDoctors(transformedDoctors.slice(0, 6));
+          setDoctors(transformedDoctors);
         }
       } catch {
         setDoctors([
@@ -85,9 +103,44 @@ export default function TrustedDoctors() {
           </p>
         </div>
 
+        {/* Search & Filter */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-8 max-w-2xl mx-auto">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, specialty..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+          <select
+            value={specialtyFilter}
+            onChange={(e) => setSpecialtyFilter(e.target.value)}
+            className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+          >
+            <option value="">All specialties</option>
+            {specialties.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Doctor cards */}
+        {filteredDoctors.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No doctors match your search.</p>
+            <button
+              onClick={() => { setSearchQuery(''); setSpecialtyFilter(''); }}
+              className="mt-2 text-emerald-600 text-sm font-medium hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {doctors.map((doctor) => (
+          {filteredDoctors.map((doctor) => (
             <button
               key={doctor.id}
               onClick={() => setSelectedDoctor(doctor)}
@@ -141,6 +194,8 @@ export default function TrustedDoctors() {
             </button>
           ))}
         </div>
+
+        )}
 
         {/* Bottom CTA */}
         <div className="text-center mt-12">
