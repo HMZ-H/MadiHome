@@ -59,21 +59,21 @@ func (s *GeminiService) GetChatCompletion(messages []Message) (string, error) {
 		return "", errors.New("gemini API key is not set")
 	}
 
-	// Map our messages to Gemini's contents. Gemini expects alternating roles: "user" and "model".
+	// Gemini expects alternating user/model roles. Merge consecutive same-role messages.
 	var contents []geminiContent
 	for _, m := range messages {
 		role := "user"
-		switch m.Role {
-		case "assistant":
+		if m.Role == "assistant" {
 			role = "model"
-		case "system":
-			// Gemini lacks a dedicated system role in v1beta; include as a user message prefix.
-			role = "user"
 		}
-		contents = append(contents, geminiContent{
-			Role:  role,
-			Parts: []geminiContentPart{{Text: m.Content}},
-		})
+		if len(contents) > 0 && contents[len(contents)-1].Role == role {
+			contents[len(contents)-1].Parts = append(contents[len(contents)-1].Parts, geminiContentPart{Text: m.Content})
+		} else {
+			contents = append(contents, geminiContent{
+				Role:  role,
+				Parts: []geminiContentPart{{Text: m.Content}},
+			})
+		}
 	}
 
 	reqBody := geminiRequest{Contents: contents}
@@ -82,7 +82,7 @@ func (s *GeminiService) GetChatCompletion(messages []Message) (string, error) {
 		return "", fmt.Errorf("failed to marshal Gemini request: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/%s:generateContent", url.PathEscape(s.model))
+	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", url.PathEscape(s.model))
 	endpoint = endpoint + "?key=" + url.QueryEscape(s.apiKey)
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(bodyBytes))

@@ -53,6 +53,9 @@ func SetupRouter(userController *controller.UserController,
 		public.GET("/uploads/photos/:filename", fileController.ServePhotos)
 		public.GET("/uploads/documents/:filename", fileController.ServeDocuments)
 
+		// AI Assistant (public, works for anonymous and authenticated users)
+		public.POST("/ai/chat", aiController.HandleChat)
+
 		// WebSocket endpoint (token in query)
 		public.GET("/ws", wsController.HandleWS)
 	}
@@ -112,8 +115,6 @@ func SetupRouter(userController *controller.UserController,
 		user.PUT("/messages/:id", messageController.UpdateMessage)
 		user.DELETE("/messages/:id", messageController.DeleteMessage)
 
-		// AI Assistant routes
-		user.POST("/ai/chat", aiController.HandleChat)
 	}
 
 	// Doctor-only routes (admin functions)
