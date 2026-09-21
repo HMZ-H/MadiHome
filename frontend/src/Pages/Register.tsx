@@ -116,7 +116,7 @@ export default function Register() {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
             First Name *
@@ -188,7 +188,7 @@ export default function Register() {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Additional Information</h3>
       
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
             Gender *
@@ -303,7 +303,7 @@ export default function Register() {
 
         {/* Registration Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
             {error && (
               <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
                 {error}

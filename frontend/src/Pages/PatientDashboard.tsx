@@ -536,49 +536,49 @@ export default function PatientDashboard() {
                   };
 
                   return (
-                    <div key={booking.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg mb-4">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-blue-100 rounded-lg mr-4">
+                    <div key={booking.id} className="p-4 bg-blue-50 rounded-lg mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg shrink-0">
                           <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">
-                            {booking.service?.name || 'Homecare Service'}
-                            {booking.doctor && ` - Dr. ${booking.doctor.first_name} ${booking.doctor.last_name}`}
-                          </h4>
-                          <p className="text-sm text-gray-600">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
+                              {booking.service?.name || 'Homecare Service'}
+                              {booking.doctor && ` - Dr. ${booking.doctor.first_name} ${booking.doctor.last_name}`}
+                            </h4>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${getStatusColor()}`}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
                             {getDateText()}, {getTimeText()}
                           </p>
-                          <p className="text-xs text-gray-500">{booking.patient_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
-                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                        </span>
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setShowBookingDetails(true);
-                            }}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
-                          >
-                            View Details
-                          </button>
-                          {booking.status === 'pending' && (
-                            <button 
+                          <p className="text-xs text-gray-500 truncate">{booking.patient_address}</p>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <button
                               onClick={() => {
-                                setBookingToReschedule(booking);
-                                setShowRescheduleForm(true);
+                                setSelectedBooking(booking);
+                                setShowBookingDetails(true);
                               }}
-                              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+                              className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm hover:bg-emerald-700 transition-colors"
                             >
-                              Reschedule
+                              View Details
                             </button>
-                          )}
+                            {booking.status === 'pending' && (
+                              <button
+                                onClick={() => {
+                                  setBookingToReschedule(booking);
+                                  setShowRescheduleForm(true);
+                                }}
+                                className="bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-xs sm:text-sm hover:bg-gray-300 transition-colors"
+                              >
+                                Reschedule
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

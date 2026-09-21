@@ -301,7 +301,7 @@ export default function Profile() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8 transform hover:shadow-2xl transition-all duration-300 interactive-card">
+        <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-8 transform hover:shadow-2xl transition-all duration-300 interactive-card">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
             <div>

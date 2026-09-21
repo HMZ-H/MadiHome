@@ -186,7 +186,7 @@ export default function ChatHubModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl shadow-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
+    <div className="fixed bottom-24 right-6 z-50 w-[22rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] rounded-2xl shadow-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
         <h3 className="text-sm font-semibold">Health Assistant</h3>
         <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ export default function ChatHubModal({
       <div className="flex flex-col flex-1 min-h-0">
 
           {mode === "ai" ? (
-            <div className="flex flex-col h-[22rem]">
+            <div className="flex flex-col h-[22rem] min-h-0">
               <div
                 ref={aiScrollRef}
                 className="flex-1 overflow-y-auto p-4 space-y-4"
@@ -274,7 +274,7 @@ export default function ChatHubModal({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col h-[22rem]">
+            <div className="flex flex-col h-[22rem] min-h-0">
               {/* Contact selector */}
               <div className="px-3 py-2 border-b border-gray-100">
                 <select

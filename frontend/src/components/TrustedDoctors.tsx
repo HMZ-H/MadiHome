@@ -212,7 +212,7 @@ export default function TrustedDoctors() {
       {/* Doctor Modal */}
       {selectedDoctor && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedDoctor(null)}>
-          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white relative">
               <button

@@ -616,7 +616,7 @@ export default function DoctorDashboard() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Navigation Tabs */}
         <div className="mb-6">
-          <nav className="flex space-x-8" aria-label="Tabs">
+          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto pb-1 -mb-1 scrollbar-none" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('overview')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -1159,10 +1159,10 @@ export default function DoctorDashboard() {
         {/* Services Tab */}
         {activeTab === 'services' && (
           <div className="bg-white rounded-lg shadow-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-800">Homecare Services</h3>
               <button onClick={() => setShowAddServiceForm(true)}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base">
                 Add New Service
               </button>
             </div>
@@ -1250,7 +1250,7 @@ export default function DoctorDashboard() {
         {/* Visits Tab */}
         {activeTab === 'visits' && (
           <div className="bg-white rounded-lg shadow-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-800">Homecare Visits</h3>
               <button 
                 onClick={handleCreateVisit}
@@ -1349,7 +1349,7 @@ export default function DoctorDashboard() {
         {/* Reject Confirmation Modal */}
         {showRejectConfirm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border max-w-sm w-full shadow-lg rounded-md bg-white">
               <div className="mt-3 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1387,7 +1387,7 @@ export default function DoctorDashboard() {
         {/* Delete Service Confirmation Modal */}
         {showDeleteServiceConfirm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border max-w-sm w-full shadow-lg rounded-md bg-white">
               <div className="mt-3 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

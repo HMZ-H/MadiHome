@@ -270,7 +270,7 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
               <p className="text-gray-600">Manage users, doctors, and system operations</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -289,7 +289,7 @@ const SuperAdminDashboard: React.FC = () => {
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
+          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto scrollbar-none">
             {[
               { id: 'overview', name: 'Overview', icon: BarChart3 },
               { id: 'users', name: 'Users', icon: Users },

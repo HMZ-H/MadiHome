@@ -85,8 +85,8 @@ export default function DoctorProfile() {
               </div>
             </div>
             <div className="md:w-2/3">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold text-gray-900">Dr. {displayName}</h1>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Dr. {displayName}</h1>
                 <button onClick={onChat} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700">Chat</button>
               </div>
               <p className="text-gray-600 mt-1">{doctor.specialty || 'Specialist'}</p>

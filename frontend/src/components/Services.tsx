@@ -52,7 +52,7 @@ export default function Services() {
               key={i}
               className={`relative rounded-2xl p-8 transition-all duration-300 ${
                 service.popular
-                  ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-[1.03]'
+                  ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200 md:scale-[1.03]'
                   : 'bg-white border border-gray-200 hover:border-emerald-200 hover:shadow-lg'
               }`}
             >
