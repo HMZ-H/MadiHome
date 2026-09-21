@@ -131,7 +131,7 @@ export const api = {
 
   // AI Assistant
   aiChat: (roomId: number, message: string) =>
-    apiRequest<{ reply: string }>('/api/user/ai/chat', {
+    apiRequest<{ reply: string }>('/api/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ room_id: roomId, message }),
     }),

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import BookingForm from '../components/BookingForm';
 import Navbar from '../components/Navbar';
 
@@ -49,7 +50,20 @@ export default function PatientDashboard() {
   const [showBookingDetails, setShowBookingDetails] = useState(false);
   const [showRescheduleForm, setShowRescheduleForm] = useState(false);
   const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
-  
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const matchesSearch = !bookingSearch ||
+        (b.service?.name || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        (b.doctor ? `${b.doctor.first_name} ${b.doctor.last_name}` : '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        b.patient_address.toLowerCase().includes(bookingSearch.toLowerCase());
+      const matchesStatus = !statusFilter || b.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, bookingSearch, statusFilter]);
+
 
   useEffect(() => {
     // Check if user is logged in and is a patient
@@ -444,26 +458,58 @@ export default function PatientDashboard() {
           </div>
         </div>
 
-        {/* Upcoming Appointments */}
+        {/* All Appointments */}
         <div className="bg-white rounded-lg shadow-lg mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800">Upcoming Appointments</h3>
+            <h3 className="text-lg font-semibold text-gray-800">My Appointments</h3>
+          </div>
+          {/* Search & Filter Bar */}
+          <div className="px-6 pt-4 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by service, doctor, address..."
+                value={bookingSearch}
+                onChange={(e) => setBookingSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            >
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="completed">Completed</option>
+              <option value="rejected">Rejected</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
           </div>
           <div className="p-6">
-            {bookings.length === 0 ? (
+            {filteredBookings.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-400 mb-4">
                   <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 text-lg">No appointments scheduled</p>
-                <p className="text-gray-400 text-sm">Book your first homecare visit to get started</p>
+                <p className="text-gray-500 text-lg">
+                  {bookingSearch || statusFilter ? 'No appointments match your filters' : 'No appointments scheduled'}
+                </p>
+                <p className="text-gray-400 text-sm">
+                  {bookingSearch || statusFilter ? (
+                    <button onClick={() => { setBookingSearch(''); setStatusFilter(''); }} className="text-emerald-600 hover:underline">
+                      Clear filters
+                    </button>
+                  ) : 'Book your first homecare visit to get started'}
+                </p>
               </div>
             ) : (
-              bookings
-                .filter(booking => booking.status === 'pending' || booking.status === 'accepted')
-                .sort((a, b) => new Date(a.preferred_date).getTime() - new Date(b.preferred_date).getTime())
+              filteredBookings
+                .sort((a, b) => new Date(b.preferred_date).getTime() - new Date(a.preferred_date).getTime())
                 .map((booking) => {
                   const appointmentDate = new Date(booking.preferred_date);
                   const isToday = appointmentDate.toDateString() === new Date().toDateString();
@@ -490,49 +536,49 @@ export default function PatientDashboard() {
                   };
 
                   return (
-                    <div key={booking.id} className="flex items-center justify-between p-4 bg-blue-50 rounded-lg mb-4">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-blue-100 rounded-lg mr-4">
+                    <div key={booking.id} className="p-4 bg-blue-50 rounded-lg mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg shrink-0">
                           <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">
-                            {booking.service?.name || 'Homecare Service'}
-                            {booking.doctor && ` - Dr. ${booking.doctor.first_name} ${booking.doctor.last_name}`}
-                          </h4>
-                          <p className="text-sm text-gray-600">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
+                              {booking.service?.name || 'Homecare Service'}
+                              {booking.doctor && ` - Dr. ${booking.doctor.first_name} ${booking.doctor.last_name}`}
+                            </h4>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${getStatusColor()}`}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
                             {getDateText()}, {getTimeText()}
                           </p>
-                          <p className="text-xs text-gray-500">{booking.patient_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
-                          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                        </span>
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setShowBookingDetails(true);
-                            }}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
-                          >
-                            View Details
-                          </button>
-                          {booking.status === 'pending' && (
-                            <button 
+                          <p className="text-xs text-gray-500 truncate">{booking.patient_address}</p>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <button
                               onClick={() => {
-                                setBookingToReschedule(booking);
-                                setShowRescheduleForm(true);
+                                setSelectedBooking(booking);
+                                setShowBookingDetails(true);
                               }}
-                              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+                              className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm hover:bg-emerald-700 transition-colors"
                             >
-                              Reschedule
+                              View Details
                             </button>
-                          )}
+                            {booking.status === 'pending' && (
+                              <button
+                                onClick={() => {
+                                  setBookingToReschedule(booking);
+                                  setShowRescheduleForm(true);
+                                }}
+                                className="bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-xs sm:text-sm hover:bg-gray-300 transition-colors"
+                              >
+                                Reschedule
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -541,61 +587,6 @@ export default function PatientDashboard() {
             )}
           </div>
         </div>
-
-        {/* Completed Appointments */}
-        {bookings.filter(booking => booking.status === 'completed').length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Recent Completed Visits</h3>
-            </div>
-            <div className="p-6">
-              {bookings
-                .filter(booking => booking.status === 'completed')
-                .sort((a, b) => new Date(b.preferred_date).getTime() - new Date(a.preferred_date).getTime())
-                .slice(0, 3)
-                .map((booking) => {
-                  const appointmentDate = new Date(booking.preferred_date);
-                  
-                  return (
-                    <div key={booking.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg mb-4">
-                      <div className="flex items-center">
-                        <div className="p-2 bg-green-100 rounded-lg mr-4">
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">
-                            {booking.service?.name || 'Homecare Service'}
-                            {booking.doctor && ` - Dr. ${booking.doctor.first_name} ${booking.doctor.last_name}`}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            Completed on {appointmentDate.toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-gray-500">{booking.patient_address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Completed
-                        </span>
-                        <button 
-                          onClick={() => {
-                            setSelectedBooking(booking);
-                            setShowBookingDetails(true);
-                          }}
-                          className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors"
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              }
-            </div>
-          </div>
-        )}
 
         {/* Recent Activity & Notifications */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

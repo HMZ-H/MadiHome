@@ -29,29 +29,36 @@ func SetupRouter(userController *controller.UserController,
 	// Add CORS middleware
 	r.Use(middleware.CORSMiddleware())
 
+	// Rate limiters: auth (10 req/min), strict (3 req/min)
+	authRL := middleware.RateLimit(10)
+	strictRL := middleware.RateLimit(3)
+
 	// Public routes
 	public := r.Group("/api")
 	{
-		public.POST("/register", AuthController.Register)
-		public.POST("/login", AuthController.Login)
-		public.POST("/refresh-token", AuthController.RefreshToken)
-		public.GET("/auth/google", AuthController.GoogleLogin)
-		public.GET("/auth/google/login", AuthController.GoogleLogin)
-		public.GET("/auth/google/callback", AuthController.GoogleCallback)
+		public.POST("/register", authRL, AuthController.Register)
+		public.POST("/login", authRL, AuthController.Login)
+		public.POST("/refresh-token", authRL, AuthController.RefreshToken)
+		public.GET("/auth/google", authRL, AuthController.GoogleLogin)
+		public.GET("/auth/google/login", authRL, AuthController.GoogleLogin)
+		public.GET("/auth/google/callback", authRL, AuthController.GoogleCallback)
 
-		// Email verification routes
-		public.GET("/verify-email/:token", AuthController.VerifyEmail)
-		public.POST("/resend-verification", AuthController.ResendVerificationEmail)
-		public.POST("/forgot-password", AuthController.ForgotPassword)
-		public.POST("/reset-password/:token", AuthController.ResetPasswordWithToken)
+		// Email verification routes (stricter limits)
+		public.GET("/verify-email/:token", strictRL, AuthController.VerifyEmail)
+		public.POST("/resend-verification", strictRL, AuthController.ResendVerificationEmail)
+		public.POST("/forgot-password", strictRL, AuthController.ForgotPassword)
+		public.POST("/reset-password/:token", strictRL, AuthController.ResetPasswordWithToken)
 
 		// Public homecare service routes (for users to view available services)
 		public.GET("/services", homecareServiceController.GetAllHomecareServices)
 		public.GET("/services/:id", homecareServiceController.GetHomecareServiceByID)
 
-		// File upload routes
-		public.POST("/upload/photo", fileController.UploadPhoto)
+		// File serving (public, read-only)
 		public.GET("/uploads/photos/:filename", fileController.ServePhotos)
+		public.GET("/uploads/documents/:filename", fileController.ServeDocuments)
+
+		// AI Assistant (public, works for anonymous and authenticated users)
+		public.POST("/ai/chat", aiController.HandleChat)
 
 		// WebSocket endpoint (token in query)
 		public.GET("/ws", wsController.HandleWS)
@@ -64,6 +71,10 @@ func SetupRouter(userController *controller.UserController,
 		protected.GET("/me", userController.Me)
 		protected.PUT("/users/:id", userController.UpdateUser)
 		protected.POST("/users/:id/change-password", userController.ChangePassword)
+
+		// File upload (requires authentication)
+		protected.POST("/upload/photo", fileController.UploadPhoto)
+		protected.POST("/upload/document", fileController.UploadDocument)
 	}
 
 	// User/Patient routes (authenticated users can view their own data)
@@ -108,8 +119,6 @@ func SetupRouter(userController *controller.UserController,
 		user.PUT("/messages/:id", messageController.UpdateMessage)
 		user.DELETE("/messages/:id", messageController.DeleteMessage)
 
-		// AI Assistant routes
-		user.POST("/ai/chat", aiController.HandleChat)
 	}
 
 	// Doctor-only routes (admin functions)

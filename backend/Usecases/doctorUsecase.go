@@ -19,6 +19,7 @@ type DoctorUsecaseInterface interface {
 	GetDoctorByID(id uint) (*schema.DoctorResponse, error)
 	GetDoctorByEmail(email string) (*schema.DoctorResponse, error)
 	GetAllDoctors() ([]*schema.DoctorResponse, error)
+	SearchDoctors(filter *schema.DoctorFilter) ([]*schema.DoctorResponse, int64, error)
 	UpdateDoctor(id uint, req *schema.UpdateDoctorRequest) (*schema.DoctorResponse, error)
 	DeleteDoctor(id uint) error
 }
@@ -91,6 +92,24 @@ func (uc *DoctorUsecase) GetAllDoctors() ([]*schema.DoctorResponse, error) {
 	}
 
 	return doctorResponses, nil
+}
+
+func (uc *DoctorUsecase) SearchDoctors(filter *schema.DoctorFilter) ([]*schema.DoctorResponse, int64, error) {
+	filter.Normalize()
+	doctors, total, err := uc.repo.SearchDoctors(
+		filter.Search, filter.Specialization,
+		filter.SortBy, filter.Order,
+		filter.Offset(), filter.PageSize,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := make([]*schema.DoctorResponse, len(doctors))
+	for i, d := range doctors {
+		responses[i] = toDoctorResponse(d)
+	}
+	return responses, total, nil
 }
 
 func (uc *DoctorUsecase) UpdateDoctor(id uint, req *schema.UpdateDoctorRequest) (*schema.DoctorResponse, error) {

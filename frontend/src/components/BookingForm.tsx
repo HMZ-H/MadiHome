@@ -291,7 +291,7 @@ export default function BookingForm({ isOpen, onClose, onSuccess, editMode = fal
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Patient Address *
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 name="patientAddress"
@@ -304,7 +304,7 @@ export default function BookingForm({ isOpen, onClose, onSuccess, editMode = fal
               <button
                 type="button"
                 onClick={handleLocationClick}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm whitespace-nowrap"
               >
                 📍 Use My Location
               </button>

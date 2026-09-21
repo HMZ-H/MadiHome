@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../components/Toast';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
@@ -6,6 +6,7 @@ import InteractiveMap from '../components/InteractiveMap';
 import NotificationBell from '../components/NotificationBell';
 import AddServiceForm from '../components/AddServiceForm';
 import ScheduleVisitForm from '../components/ScheduleVisitForm';
+import { Search } from 'lucide-react';
 
 
 interface DoctorStats {
@@ -95,6 +96,19 @@ export default function DoctorDashboard() {
   const [bookingToReject, setBookingToReject] = useState<number | null>(null);
   const [showDeleteServiceConfirm, setShowDeleteServiceConfirm] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<number | null>(null);
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('');
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const matchesSearch = !bookingSearch ||
+        b.patient_name.toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        b.service_name.toLowerCase().includes(bookingSearch.toLowerCase()) ||
+        b.patient_address.toLowerCase().includes(bookingSearch.toLowerCase());
+      const matchesStatus = !bookingStatusFilter || b.status === bookingStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookings, bookingSearch, bookingStatusFilter]);
   const [showAddVisitForm, setShowAddVisitForm] = useState(false);
   const [visitToEdit, setVisitToEdit] = useState<Visit | null>(null);
   const [showEditVisitForm, setShowEditVisitForm] = useState(false);
@@ -602,7 +616,7 @@ export default function DoctorDashboard() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Navigation Tabs */}
         <div className="mb-6">
-          <nav className="flex space-x-8" aria-label="Tabs">
+          <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto pb-1 -mb-1 scrollbar-none" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('overview')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -1013,6 +1027,30 @@ export default function DoctorDashboard() {
               <p className="text-sm text-gray-600 mt-1">
                 Manage patient booking requests. Accept pending bookings or reject them with confirmation.
               </p>
+              <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search patient, service, address..."
+                    value={bookingSearch}
+                    onChange={(e) => setBookingSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={bookingStatusFilter}
+                  onChange={(e) => setBookingStatusFilter(e.target.value)}
+                  className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                >
+                  <option value="">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -1033,14 +1071,14 @@ export default function DoctorDashboard() {
                         Loading bookings...
                   </td>
                 </tr>
-                  ) : bookings.length === 0 ? (
+                  ) : filteredBookings.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                        No bookings found
+                        {bookingSearch || bookingStatusFilter ? 'No bookings match your filters' : 'No bookings found'}
                       </td>
                     </tr>
                   ) : (
-                    bookings.map((booking) => (
+                    filteredBookings.map((booking) => (
                       <tr key={booking.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{booking.patient_name}</div>
@@ -1121,10 +1159,10 @@ export default function DoctorDashboard() {
         {/* Services Tab */}
         {activeTab === 'services' && (
           <div className="bg-white rounded-lg shadow-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-800">Homecare Services</h3>
               <button onClick={() => setShowAddServiceForm(true)}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base">
                 Add New Service
               </button>
             </div>
@@ -1212,7 +1250,7 @@ export default function DoctorDashboard() {
         {/* Visits Tab */}
         {activeTab === 'visits' && (
           <div className="bg-white rounded-lg shadow-lg">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-800">Homecare Visits</h3>
               <button 
                 onClick={handleCreateVisit}
@@ -1311,7 +1349,7 @@ export default function DoctorDashboard() {
         {/* Reject Confirmation Modal */}
         {showRejectConfirm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border max-w-sm w-full shadow-lg rounded-md bg-white">
               <div className="mt-3 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1349,7 +1387,7 @@ export default function DoctorDashboard() {
         {/* Delete Service Confirmation Modal */}
         {showDeleteServiceConfirm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="relative top-20 mx-auto p-5 border max-w-sm w-full shadow-lg rounded-md bg-white">
               <div className="mt-3 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                   <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

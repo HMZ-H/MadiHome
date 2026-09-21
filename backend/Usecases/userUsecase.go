@@ -2,7 +2,6 @@ package Usecases
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	"github.com/HMZ-H/Madihome/Delivery/schema"
@@ -217,9 +216,6 @@ func (uc *UserUsecase) UpdateUser(userID uint, req *schema.UpdateUserRequest) (*
 		return nil, errors.New("user not found")
 	}
 
-	log.Printf("UpdateUser - User ID: %d, Photo URL from request: '%s'", userID, req.Photo)
-	log.Printf("UpdateUser - Current user photo: '%s'", user.Photo)
-
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
 	user.Email = req.Email
@@ -229,8 +225,6 @@ func (uc *UserUsecase) UpdateUser(userID uint, req *schema.UpdateUserRequest) (*
 	user.Address = req.Address
 	user.Photo = req.Photo
 	user.Role = req.Role
-
-	log.Printf("UpdateUser - Setting user.Photo to: '%s'", user.Photo)
 
 	updatedUser, err := uc.repo.UpdateUser(user)
 	if err != nil {
@@ -404,7 +398,6 @@ func parseUint(s string) uint {
 }
 
 func toUserResponse(user *entity.User) *schema.UserResponse {
-	log.Printf("toUserResponse - User ID: %d, Photo: '%s'", user.ID, user.Photo)
 	return &schema.UserResponse{
 		ID:         user.ID,
 		FirstName:  user.FirstName,

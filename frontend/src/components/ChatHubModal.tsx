@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Modal from "./Modal";
+import { X } from "lucide-react";
 import MessageThread from "./MessageThread";
 import { useMessages } from "../hooks/useMessages";
 import { api } from "../utils/api";
@@ -183,36 +183,41 @@ export default function ChatHubModal({
     }
   }, [events, isOpen, mode, selectedDoctorUserId, pushIncoming]);
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="p-0">
-        <div className="p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold">Health Assistant</h3>
-            <div className="inline-flex bg-gray-100 rounded-md overflow-hidden border">
-              <button
-                className={`px-3 py-1 text-sm ${
-                  mode === "ai" ? "bg-white text-emerald-700" : "text-gray-600"
-                }`}
-                onClick={() => setMode("ai")}
-              >
-                AI
-              </button>
-              <button
-                className={`px-3 py-1 text-sm ${
-                  mode === "messages"
-                    ? "bg-white text-emerald-700"
-                    : "text-gray-600"
-                }`}
-                onClick={() => setMode("messages")}
-              >
-                Messages
-              </button>
-            </div>
+    <div className="fixed bottom-24 right-6 z-50 w-[22rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] rounded-2xl shadow-2xl border border-gray-200 bg-white flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+        <h3 className="text-sm font-semibold">Health Assistant</h3>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex bg-white/20 rounded-md overflow-hidden">
+            <button
+              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                mode === "ai" ? "bg-white/30 text-white" : "text-white/70 hover:text-white"
+              }`}
+              onClick={() => setMode("ai")}
+            >
+              AI
+            </button>
+            <button
+              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                mode === "messages" ? "bg-white/30 text-white" : "text-white/70 hover:text-white"
+              }`}
+              onClick={() => setMode("messages")}
+            >
+              Messages
+            </button>
           </div>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col flex-1 min-h-0">
 
           {mode === "ai" ? (
-            <div className="flex flex-col w-[28rem] max-w-full h-[28rem]">
+            <div className="flex flex-col h-[22rem] min-h-0">
               <div
                 ref={aiScrollRef}
                 className="flex-1 overflow-y-auto p-4 space-y-4"
@@ -269,78 +274,43 @@ export default function ChatHubModal({
               </div>
             </div>
           ) : (
-            <div className="flex gap-3 w-[48rem] max-w-full h-[28rem]">
-              {/* List Sidebar */}
-              <div className="w-48 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-                <div className="p-2 border-b border-gray-200 bg-white">
-                  <div className="text-xs font-medium text-gray-700">
-                    {doctors.length === 0 && recentContacts.length > 0 ? "Recent" : sidebarLabel}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {doctors.length === 0 ? (
-                    recentContacts.length === 0 ? (
-                      <div className="p-3 text-xs text-gray-500">
-                        {sidebarLabel === "Patients" ? "No patients found" : "No doctors found"}
-                      </div>
-                    ) : (
-                      recentContacts.map((uid) => (
-                        <button
-                          key={`recent-${uid}`}
-                          className={`w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-white transition-colors ${
-                            selectedDoctorUserId === uid
-                              ? "bg-emerald-50 border-l-2 border-l-emerald-600"
-                              : ""
-                          }`}
-                          onClick={() => {
-                            const me = Number(localStorage.getItem("user_id"));
-                            if (uid && uid !== me) setSelectedDoctorUserId(uid);
-                          }}
-                        >
-                          <div className="text-xs font-medium text-gray-800 truncate">
-                            {`User #${uid}`}
-                          </div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            Recent contact
-                          </div>
-                        </button>
+            <div className="flex flex-col h-[22rem] min-h-0">
+              {/* Contact selector */}
+              <div className="px-3 py-2 border-b border-gray-100">
+                <select
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700"
+                  value={selectedDoctorUserId || ""}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val) setSelectedDoctorUserId(val);
+                  }}
+                >
+                  <option value="" disabled>
+                    Select {sidebarLabel === "Patients" ? "a patient" : "a doctor"}...
+                  </option>
+                  {doctors.length === 0
+                    ? recentContacts.map((uid) => (
+                        <option key={`recent-${uid}`} value={uid}>
+                          User #{uid}
+                        </option>
                       ))
-                    )
-                  ) : (
-                    doctors.map((d) => {
-                      const userId = d.user_id || d.user?.id || 0;
-                      const displayName =
-                        `${d.user?.first_name || d.first_name || ""} ${
-                          d.user?.last_name || d.last_name || ""
-                        }`.trim() || "Doctor";
-                      return (
-                        <button
-                          key={d.id}
-                          className={`w-full text-left px-3 py-2 border-b border-gray-100 hover:bg-white transition-colors ${
-                            selectedDoctorUserId === userId
-                              ? "bg-emerald-50 border-l-2 border-l-emerald-600"
-                              : ""
-                          }`}
-                          onClick={() => {
-                            const me = Number(localStorage.getItem("user_id"));
-                            if (userId && userId !== me) setSelectedDoctorUserId(userId);
-                          }}
-                        >
-                          <div className="text-xs font-medium text-gray-800 truncate">
+                    : doctors.map((d) => {
+                        const userId = d.user_id || d.user?.id || 0;
+                        const displayName =
+                          `${d.user?.first_name || d.first_name || ""} ${
+                            d.user?.last_name || d.last_name || ""
+                          }`.trim() || "Doctor";
+                        return (
+                          <option key={d.id} value={userId}>
                             {displayName}
-                          </div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            {d.user?.email || d.email || ""}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                          </option>
+                        );
+                      })}
+                </select>
               </div>
 
               {/* Message Thread */}
-              <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <MessageThread
                   messages={messages}
                   currentUserId={
@@ -353,9 +323,9 @@ export default function ChatHubModal({
             </div>
           )}
 
-          <div className="pt-3 border-t flex gap-2 items-center">
+          <div className="px-3 py-2 border-t border-gray-100 flex gap-2 items-center">
             <input
-              className="flex-1 border rounded-lg px-3 py-2 text-sm"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs"
               value={draft}
               placeholder={
                 mode === "ai"
@@ -436,7 +406,7 @@ export default function ChatHubModal({
               }}
             />
             <button
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-50"
+              className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium disabled:opacity-50"
               disabled={!draft.trim() || (mode === "ai" && aiTyping)}
               onClick={async () => {
                 if (!draft.trim()) return;
@@ -503,12 +473,8 @@ export default function ChatHubModal({
             >
               Send
             </button>
-            <div className="text-xs text-gray-500 ml-2">
-              {mode === "ai" ? "AI" : "Messages"}
-            </div>
           </div>
-        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
