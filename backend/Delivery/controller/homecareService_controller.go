@@ -167,18 +167,35 @@ func (hsc *HomecareServiceController) GetHomecareServiceByName(c *gin.Context) {
 }
 
 func (hsc *HomecareServiceController) GetAllHomecareServices(c *gin.Context) {
-	services, err := hsc.homecareServiceUsecase.GetAllHomecareServices()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{
-			Success: false,
-			Message: err.Error(),
-		})
+	var filter schema.ServiceFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, schema.ErrorResponse{Success: false, Message: "Invalid query parameters"})
 		return
 	}
-	c.JSON(http.StatusOK, schema.SuccessResponse{
-		Success: true,
-		Message: "Homecare services retrieved successfully",
-		Data:    services,
+
+	if filter.Search == "" && filter.Category == "" && filter.MinPrice == nil && filter.MaxPrice == nil && filter.IsActive == nil && filter.Page == 0 {
+		services, err := hsc.homecareServiceUsecase.GetAllHomecareServices()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Success: false, Message: err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "Homecare services retrieved successfully", Data: services})
+		return
+	}
+
+	services, total, err := hsc.homecareServiceUsecase.SearchServices(&filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Success: false, Message: err.Error()})
+		return
+	}
+	filter.Normalize()
+	c.JSON(http.StatusOK, schema.PaginatedResponse{
+		Success:  true,
+		Message:  "Homecare services retrieved successfully",
+		Data:     services,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    total,
 	})
 }
 

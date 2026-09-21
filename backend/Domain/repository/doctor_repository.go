@@ -8,6 +8,7 @@ type DoctorRepository interface {
 	GetDoctorByUserID(userID uint) (*entity.Doctor, error)
 	GetDoctorByEmail(email string) (*entity.Doctor, error)
 	GetAllDoctors() ([]*entity.Doctor, error)
+	SearchDoctors(search, specialization, sortBy, order string, offset, limit int) ([]*entity.Doctor, int64, error)
 	UpdateDoctor(doctor *entity.Doctor) (*entity.Doctor, error)
 	DeleteDoctor(id uint) error
 }

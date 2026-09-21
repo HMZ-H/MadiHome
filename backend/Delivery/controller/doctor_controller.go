@@ -67,15 +67,38 @@ func (dc *DoctorController) GetDoctorByEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "Doctor retrieved", Data: doctor})
 }
 
-// GetAllDoctors gets all doctors
+// GetAllDoctors gets all doctors with optional search/filter
 func (dc *DoctorController) GetAllDoctors(c *gin.Context) {
-	doctors, err := dc.doctorUsecase.GetAllDoctors()
+	var filter schema.DoctorFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, schema.ErrorResponse{Message: "Invalid query parameters"})
+		return
+	}
+
+	if filter.Search == "" && filter.Specialization == "" && filter.Page == 0 {
+		doctors, err := dc.doctorUsecase.GetAllDoctors()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Message: err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "Doctors retrieved", Data: doctors})
+		return
+	}
+
+	doctors, total, err := dc.doctorUsecase.SearchDoctors(&filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, schema.ErrorResponse{Message: err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, schema.SuccessResponse{Success: true, Message: "Doctors retrieved", Data: doctors})
+	filter.Normalize()
+	c.JSON(http.StatusOK, schema.PaginatedResponse{
+		Success:  true,
+		Message:  "Doctors retrieved",
+		Data:     doctors,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    total,
+	})
 }
 
 // UpdateDoctor updates a doctor

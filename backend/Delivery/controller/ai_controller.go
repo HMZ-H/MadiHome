@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"log"
 	"net/http"
 
 	usecases "github.com/HMZ-H/Madihome/Usecases"
@@ -16,10 +17,9 @@ func NewHomecareAIHandler(usecase *usecases.HomecareAIAssistantUsecase) *Homecar
 }
 
 func (h *HomecareAIHandler) HandleChat(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
+	var userID uint
+	if id, exists := c.Get("user_id"); exists {
+		userID = id.(uint)
 	}
 
 	var req struct {
@@ -31,8 +31,9 @@ func (h *HomecareAIHandler) HandleChat(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.usecase.GetAssistantResponse(userID.(uint), req.RoomID, req.Message)
+	resp, err := h.usecase.GetAssistantResponse(userID, req.RoomID, req.Message)
 	if err != nil {
+		log.Printf("AI chat error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

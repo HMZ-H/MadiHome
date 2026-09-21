@@ -106,6 +106,25 @@ func (uc *HomecareUsecaseService) GetAllHomecareServices() ([]*schema.HomecareSe
 	return serviceResponse, nil
 }
 
+func (uc *HomecareUsecaseService) SearchServices(filter *schema.ServiceFilter) ([]*schema.HomecareServiceResponse, int64, error) {
+	filter.Normalize()
+	services, total, err := uc.repo.SearchServices(
+		filter.Search, filter.Category,
+		filter.MinPrice, filter.MaxPrice, filter.IsActive,
+		filter.SortBy, filter.Order,
+		filter.Offset(), filter.PageSize,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := make([]*schema.HomecareServiceResponse, len(services))
+	for i, s := range services {
+		responses[i] = toHomecareServiceResponse(s)
+	}
+	return responses, total, nil
+}
+
 func (uc *HomecareUsecaseService) UpdateHomecareService(id uint, req *schema.UpdateHomecareServiceRequest) (*schema.HomecareServiceResponse, error) {
 	service, err := uc.repo.GetHomecareServiceByID(id)
 	if err != nil {
