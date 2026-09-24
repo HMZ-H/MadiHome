@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Search, Bell } from 'lucide-react';
 import BookingForm from '../components/BookingForm';
 import Navbar from '../components/Navbar';
 
@@ -37,6 +37,119 @@ interface Booking {
     last_name: string;
     specialization: string;
   };
+}
+
+interface PatientNotification {
+  id: number;
+  title: string;
+  message: string;
+  type: 'booking' | 'visit' | 'system';
+  is_read: boolean;
+  created_at: string;
+}
+
+function PatientNotifications() {
+  const [notifications, setNotifications] = useState<PatientNotification[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      const response = await fetch(`${API_BASE_URL}/api/user/notifications`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications((data.data || []).slice(0, 10));
+      }
+    } catch { /* silent */ }
+  }, [API_BASE_URL]);
+
+  const connectWebSocket = useCallback(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = API_BASE_URL.replace(/^https?:\/\//, '');
+    const ws = new WebSocket(`${wsProtocol}://${wsHost}/api/ws?token=${token}`);
+
+    ws.onmessage = (event) => {
+      try {
+        const evt = JSON.parse(event.data);
+        if (evt.type === 'notification' && evt.content) {
+          const n: PatientNotification = JSON.parse(evt.content);
+          setNotifications(prev => [n, ...prev].slice(0, 10));
+        }
+      } catch { /* ignore */ }
+    };
+    ws.onclose = () => {
+      wsRef.current = null;
+      reconnectTimeout.current = setTimeout(connectWebSocket, 5000);
+    };
+    ws.onerror = () => ws.close();
+    wsRef.current = ws;
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    fetchNotifications();
+    connectWebSocket();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => {
+      clearInterval(interval);
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [fetchNotifications, connectWebSocket]);
+
+  const markAsRead = async (id: number) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const res = await fetch(`${API_BASE_URL}/api/user/notifications/${id}/read`, {
+      method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+  };
+
+  const typeColors: Record<string, { bg: string; dot: string }> = {
+    booking: { bg: 'bg-blue-50', dot: 'bg-blue-500' },
+    visit: { bg: 'bg-green-50', dot: 'bg-green-500' },
+    system: { bg: 'bg-gray-50', dot: 'bg-gray-500' },
+  };
+
+  if (notifications.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <Bell className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-400 text-sm">No notifications yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {notifications.map(n => {
+        const colors = typeColors[n.type] || typeColors.system;
+        return (
+          <button
+            key={n.id}
+            onClick={() => !n.is_read && markAsRead(n.id)}
+            className={`w-full text-left flex items-start gap-3 p-3 rounded-lg transition-colors ${
+              n.is_read ? 'bg-gray-50' : colors.bg
+            }`}
+          >
+            {!n.is_read && <div className={`w-2 h-2 ${colors.dot} rounded-full mt-2 flex-shrink-0`} />}
+            {n.is_read && <div className="w-2 h-2 mt-2 flex-shrink-0" />}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">{n.title}</p>
+              <p className="text-xs text-gray-600 mt-0.5">{n.message}</p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function PatientDashboard() {
@@ -648,52 +761,8 @@ export default function PatientDashboard() {
 
           {/* Notifications */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Notifications</h3>
-            <div className="space-y-4">
-              {/* Sample notifications - you can make these dynamic */}
-              <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Welcome to MadiHome!</p>
-                  <p className="text-xs text-gray-600">Complete your profile to get started</p>
-                </div>
-              </div>
-              
-              {bookings.filter(b => b.status === 'pending').length > 0 && (
-                <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Pending Appointments</p>
-                    <p className="text-xs text-gray-600">
-                      You have {bookings.filter(b => b.status === 'pending').length} appointment(s) waiting for doctor confirmation
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {bookings.filter(b => b.status === 'accepted').length > 0 && (
-                <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Confirmed Appointments</p>
-                    <p className="text-xs text-gray-600">
-                      {bookings.filter(b => b.status === 'accepted').length} appointment(s) confirmed by your doctor
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {bookings.length === 0 && (
-                <div className="text-center py-4">
-                  <div className="text-gray-400 mb-2">
-                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 00-15 0v5h5l-5 5-5-5h5v-5a7.5 7.5 0 0115 0v5z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 text-sm">No notifications</p>
-                </div>
-              )}
-            </div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Notifications</h3>
+            <PatientNotifications />
           </div>
         </div>
 

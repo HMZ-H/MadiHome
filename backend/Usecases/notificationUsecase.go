@@ -6,12 +6,14 @@ import (
 	"github.com/HMZ-H/Madihome/Delivery/schema"
 	"github.com/HMZ-H/Madihome/Domain/entity"
 	"github.com/HMZ-H/Madihome/Domain/repository"
+	"github.com/HMZ-H/Madihome/Infrastructure/realtime"
 )
 
 type NotificationUsecase struct {
 	notificationRepo repository.NotificationRepository
 	userRepo         repository.UserRepository
 	doctorRepo       repository.DoctorRepository
+	Hub              *realtime.Hub
 }
 
 type NotificationUsecaseInterface interface {
@@ -51,7 +53,20 @@ func (uc *NotificationUsecase) CreateNotification(req *schema.CreateNotification
 		return nil, err
 	}
 
-	return toNotificationResponse(createdNotification), nil
+	resp := toNotificationResponse(createdNotification)
+	uc.pushToUser(resp)
+	return resp, nil
+}
+
+func (uc *NotificationUsecase) pushToUser(n *schema.NotificationResponse) {
+	if uc.Hub == nil {
+		return
+	}
+	data, _ := json.Marshal(n)
+	uc.Hub.BroadcastToUser(n.UserID, realtime.MessageEvent{
+		Type:    "notification",
+		Content: string(data),
+	})
 }
 
 func (uc *NotificationUsecase) GetUserNotifications(userID uint) ([]*schema.NotificationResponse, error) {
@@ -123,10 +138,11 @@ func (uc *NotificationUsecase) NotifyNewBooking(booking *entity.Booking) error {
 			Data:    string(dataJSON),
 		}
 
-		_, err := uc.notificationRepo.CreateNotification(notification)
+		created, err := uc.notificationRepo.CreateNotification(notification)
 		if err != nil {
 			return err
 		}
+		uc.pushToUser(toNotificationResponse(created))
 	}
 
 	return nil
@@ -150,7 +166,10 @@ func (uc *NotificationUsecase) NotifyBookingAccepted(booking *entity.Booking) er
 		Data:    string(dataJSON),
 	}
 
-	_, err := uc.notificationRepo.CreateNotification(notification)
+	created, err := uc.notificationRepo.CreateNotification(notification)
+	if err == nil {
+		uc.pushToUser(toNotificationResponse(created))
+	}
 	return err
 }
 
@@ -171,7 +190,10 @@ func (uc *NotificationUsecase) NotifyBookingRejected(booking *entity.Booking) er
 		Data:    string(dataJSON),
 	}
 
-	_, err := uc.notificationRepo.CreateNotification(notification)
+	created, err := uc.notificationRepo.CreateNotification(notification)
+	if err == nil {
+		uc.pushToUser(toNotificationResponse(created))
+	}
 	return err
 }
 
@@ -193,7 +215,10 @@ func (uc *NotificationUsecase) NotifyNewVisit(visit *entity.HomecareVisit) error
 		Data:    string(dataJSON),
 	}
 
-	_, err := uc.notificationRepo.CreateNotification(notification)
+	created, err := uc.notificationRepo.CreateNotification(notification)
+	if err == nil {
+		uc.pushToUser(toNotificationResponse(created))
+	}
 	return err
 }
 
