@@ -155,8 +155,9 @@ func main() {
 	aiController := controller.NewHomecareAIHandler(aiUsecase)
 	// Realtime hub & WS controller
 	hub := realtime.NewHub()
-	// Update message usecase with the shared hub
+	// Update usecases with the shared hub
 	messageUsecase.Hub = hub
+	notificationUsecase.Hub = hub
 	wsController := controller.NewWSController(hub, jwtService, messageUsecase)
 
 	// Set up Gin router

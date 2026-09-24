@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Logo from "./Logo";
+import NotificationBell from "./NotificationBell";
 import { User, Settings, LogOut, UserCircle, ChevronDown, MessageSquareText, Menu, X } from "lucide-react";
 import { useState as useReactState } from 'react';
 import ChatHubModal from './ChatHubModal';
@@ -117,6 +118,8 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
+                <NotificationBell />
+
                 <button
                   onClick={() => setShowChatHub(true)}
                   className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
