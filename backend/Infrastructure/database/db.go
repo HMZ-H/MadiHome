@@ -63,6 +63,7 @@ func migrate(db *gorm.DB) {
 		&entity.Message{},
 		&entity.RoleRequest{},
 		&entity.Notification{},
+		&entity.Review{},
 	); err != nil {
 		log.Fatalf("Failed to migrate database schema: %v", err)
 	} else {
