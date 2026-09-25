@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Star } from 'lucide-react';
 import BookingForm from '../components/BookingForm';
 import Navbar from '../components/Navbar';
 
@@ -165,6 +165,12 @@ export default function PatientDashboard() {
   const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
   const [bookingSearch, setBookingSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<number>>(new Set());
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
@@ -294,6 +300,45 @@ export default function PatientDashboard() {
   const refreshBookings = () => {
     fetchBookings();
   }
+
+  useEffect(() => {
+    const fetchMyReviews = async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/user/reviews`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const ids = new Set<number>((data.data || []).map((r: { booking_id: number }) => r.booking_id));
+          setReviewedBookingIds(ids);
+        }
+      } catch { /* silent */ }
+    };
+    fetchMyReviews();
+  }, [API_BASE_URL]);
+
+  const submitReview = async () => {
+    if (!reviewBooking) return;
+    setSubmittingReview(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/api/user/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ booking_id: reviewBooking.id, rating: reviewRating, comment: reviewComment }),
+      });
+      if (response.ok) {
+        setReviewedBookingIds(prev => new Set(prev).add(reviewBooking.id));
+        setShowReviewModal(false);
+        setReviewBooking(null);
+        setReviewRating(5);
+        setReviewComment('');
+      }
+    } catch { /* silent */ }
+    setSubmittingReview(false);
+  };
 
   // Booking Details Modal Component
   const BookingDetailsModal = ({ booking, isOpen, onClose }: { 
@@ -691,6 +736,24 @@ export default function PatientDashboard() {
                                 Reschedule
                               </button>
                             )}
+                            {booking.status === 'completed' && !reviewedBookingIds.has(booking.id) && (
+                              <button
+                                onClick={() => {
+                                  setReviewBooking(booking);
+                                  setReviewRating(5);
+                                  setReviewComment('');
+                                  setShowReviewModal(true);
+                                }}
+                                className="bg-yellow-500 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm hover:bg-yellow-600 transition-colors flex items-center gap-1"
+                              >
+                                <Star className="w-3.5 h-3.5" /> Leave Review
+                              </button>
+                            )}
+                            {booking.status === 'completed' && reviewedBookingIds.has(booking.id) && (
+                              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 px-3 py-1.5">
+                                <Star className="w-3.5 h-3.5 fill-emerald-600" /> Reviewed
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -903,6 +966,54 @@ export default function PatientDashboard() {
         editMode={true}
         existingBooking={bookingToReschedule || undefined}
       />
+
+      {/* Review Modal */}
+      {showReviewModal && reviewBooking && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowReviewModal(false)}>
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Leave a Review</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Rate your experience with {reviewBooking.doctor ? `Dr. ${reviewBooking.doctor.first_name} ${reviewBooking.doctor.last_name}` : 'your doctor'}
+            </p>
+
+            <div className="flex gap-1 mb-4">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button
+                  key={star}
+                  onClick={() => setReviewRating(star)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star className={`w-8 h-8 ${star <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              placeholder="Share your experience (optional)..."
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReview}
+                disabled={submittingReview}
+                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              >
+                {submittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

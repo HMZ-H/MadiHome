@@ -97,6 +97,10 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(db)
 	notificationUsecase := usecases.NewNotificationUsecase(notificationRepo, userRepo, doctorRepo)
 
+	// Initialize review system
+	reviewRepo := repository.NewReviewRepository(db)
+	reviewUsecase := usecases.NewReviewUsecase(reviewRepo, bookingRepo)
+
 	// Initialize message system
 	messageRepo := repository.NewMessageRepository(db)
 	messageUsecase := usecases.NewMessageUsecase(messageRepo, nil) // Will be set later with the shared hub
@@ -153,6 +157,7 @@ func main() {
 	roleRequestController := controller.NewRoleRequestController(roleRequestUsecase)
 	messageController := controller.NewMessageController(messageUsecase)
 	aiController := controller.NewHomecareAIHandler(aiUsecase)
+	reviewController := controller.NewReviewController(reviewUsecase)
 	// Realtime hub & WS controller
 	hub := realtime.NewHub()
 	// Update usecases with the shared hub
@@ -161,7 +166,7 @@ func main() {
 	wsController := controller.NewWSController(hub, jwtService, messageUsecase)
 
 	// Set up Gin router
-	r := router.SetupRouter(userController, authController, doctorController, homecareServiceController, homecarePlanController, homecareVisitController, bookingController, notificationController, fileController, adminController, roleRequestController, messageController, aiController, wsController, jwtService)
+	r := router.SetupRouter(userController, authController, doctorController, homecareServiceController, homecarePlanController, homecareVisitController, bookingController, notificationController, fileController, adminController, roleRequestController, messageController, aiController, wsController, reviewController, jwtService)
 
 	// Start the server
 	port := os.Getenv("PORT")

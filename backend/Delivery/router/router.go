@@ -21,6 +21,7 @@ func SetupRouter(userController *controller.UserController,
 	messageController *controller.MessageController,
 	aiController *controller.HomecareAIHandler,
 	wsController *controller.WSController,
+	reviewController *controller.ReviewController,
 	jwtService *security.JWTService) *gin.Engine {
 	r := gin.Default()
 	// Do not trust any proxies by default to avoid security warning
@@ -194,6 +195,16 @@ func SetupRouter(userController *controller.UserController,
 	// Public doctor routes (for users to view doctors)
 	public.GET("/doctors", doctorController.GetAllDoctors)
 	public.GET("/doctors/:id", doctorController.GetDoctorByID)
+
+	// Public review routes (anyone can view reviews and ratings)
+	public.GET("/doctors/:id/reviews", reviewController.GetDoctorReviews)
+	public.GET("/doctors/:id/rating", reviewController.GetDoctorRating)
+
+	// Protected review routes (patients can create/edit/delete their reviews)
+	user.POST("/reviews", reviewController.CreateReview)
+	user.GET("/reviews", reviewController.GetMyReviews)
+	user.PUT("/reviews/:id", reviewController.UpdateReview)
+	user.DELETE("/reviews/:id", reviewController.DeleteReview)
 
 	return r
 }

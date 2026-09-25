@@ -14,6 +14,15 @@ interface Doctor {
   bio: string;
   is_available?: boolean;
   consultation_fee?: number;
+  doctor_id?: number;
+}
+
+interface ReviewData {
+  id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  patient: { first_name: string; last_name: string };
 }
 
 export default function TrustedDoctors() {
@@ -22,6 +31,8 @@ export default function TrustedDoctors() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('');
+  const [doctorReviews, setDoctorReviews] = useState<ReviewData[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   const specialties = useMemo(() => {
     const set = new Set(doctors.map(d => d.specialty));
@@ -48,20 +59,37 @@ export default function TrustedDoctors() {
         if (response.ok) {
           const data = await response.json();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const transformedDoctors = data.data?.map((doctor: any) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const transformed = data.data?.map((doctor: any) => ({
             id: doctor.id,
+            doctor_id: doctor.id,
             first_name: doctor.user?.first_name || 'Dr.',
             last_name: doctor.user?.last_name || 'Smith',
             specialty: doctor.specialty || 'General Medicine',
             experience_years: doctor.experience_years || 5,
-            rating: Math.round((Math.random() * 1 + 4) * 10) / 10,
-            total_patients: Math.floor(Math.random() * 400) + 100,
+            rating: 0,
+            total_patients: 0,
             profile_photo: doctor.profile_photo,
             bio: doctor.bio || `Experienced ${doctor.specialty || 'medical'} professional.`,
-            is_available: Math.random() > 0.3,
+            is_available: true,
             consultation_fee: Math.floor(Math.random() * 150) + 80,
           })) || [];
-          setDoctors(transformedDoctors);
+
+          // Fetch real ratings for each doctor
+          const withRatings = await Promise.all(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            transformed.map(async (d: any) => {
+              try {
+                const ratingRes = await fetch(`${API_BASE_URL}/api/doctors/${d.doctor_id}/rating`);
+                if (ratingRes.ok) {
+                  const ratingData = await ratingRes.json();
+                  return { ...d, rating: Math.round((ratingData.data?.average || 0) * 10) / 10, total_patients: ratingData.data?.total_count || 0 };
+                }
+              } catch { /* silent */ }
+              return d;
+            })
+          );
+          setDoctors(withRatings);
         }
       } catch {
         setDoctors([
@@ -143,7 +171,16 @@ export default function TrustedDoctors() {
           {filteredDoctors.map((doctor) => (
             <button
               key={doctor.id}
-              onClick={() => setSelectedDoctor(doctor)}
+              onClick={() => {
+                setSelectedDoctor(doctor);
+                setLoadingReviews(true);
+                const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+                fetch(`${API}/api/doctors/${doctor.doctor_id || doctor.id}/reviews`)
+                  .then(r => r.ok ? r.json() : { data: [] })
+                  .then(d => setDoctorReviews(d.data || []))
+                  .catch(() => setDoctorReviews([]))
+                  .finally(() => setLoadingReviews(false));
+              }}
               className="group text-left p-6 rounded-2xl border border-gray-100 bg-white hover:shadow-lg hover:border-emerald-100 transition-all duration-300"
             >
               <div className="flex items-center gap-4 mb-4">
@@ -175,9 +212,9 @@ export default function TrustedDoctors() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-semibold text-gray-900">{doctor.rating}</span>
-                  <span className="text-xs text-gray-400">({doctor.total_patients})</span>
+                  <Star className={`w-4 h-4 ${doctor.rating > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                  <span className="text-sm font-semibold text-gray-900">{doctor.rating > 0 ? doctor.rating : 'New'}</span>
+                  {doctor.total_patients > 0 && <span className="text-xs text-gray-400">({doctor.total_patients})</span>}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-400">
                   <MapPin className="w-3 h-3" />
@@ -260,6 +297,41 @@ export default function TrustedDoctors() {
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-2">About</h4>
                 <p className="text-sm text-gray-600 leading-relaxed">{selectedDoctor.bio}</p>
+              </div>
+
+              {/* Reviews Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  Patient Reviews {selectedDoctor.total_patients > 0 && `(${selectedDoctor.total_patients})`}
+                </h4>
+                {loadingReviews ? (
+                  <p className="text-xs text-gray-400">Loading reviews...</p>
+                ) : doctorReviews.length === 0 ? (
+                  <p className="text-xs text-gray-400">No reviews yet</p>
+                ) : (
+                  <div className="space-y-3 max-h-40 overflow-y-auto">
+                    {doctorReviews.slice(0, 5).map(review => (
+                      <div key={review.id} className="border-b border-gray-100 pb-2 last:border-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <Star key={s} className={`w-3 h-3 ${s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {review.comment && (
+                          <p className="text-xs text-gray-600 mt-1">{review.comment}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {review.patient.first_name} {review.patient.last_name[0]}.
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-2">
