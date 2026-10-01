@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Clock } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
@@ -673,6 +674,42 @@ export default function DoctorDashboard() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <>
+        {/* Upcoming Appointment Alerts */}
+        {(() => {
+          const now = new Date();
+          const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const upcoming = bookings.filter(b => {
+            if (b.status !== 'accepted') return false;
+            const d = new Date(b.requested_time);
+            return d >= now && d <= in24h;
+          });
+          if (upcoming.length === 0) return null;
+          return (
+            <div className="mb-4 space-y-2">
+              {upcoming.map(b => {
+                const date = new Date(b.requested_time);
+                const hoursLeft = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60));
+                return (
+                  <div key={b.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg shrink-0">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {b.service_name || 'Visit'} — {b.patient_name || 'Patient'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {' '}— {hoursLeft <= 1 ? 'starting soon' : `in ${hoursLeft}h`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-6">

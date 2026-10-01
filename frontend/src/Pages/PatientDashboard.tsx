@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Bell, Star } from 'lucide-react';
+import { Search, Bell, Star, Clock } from 'lucide-react';
 import BookingForm from '../components/BookingForm';
 import Navbar from '../components/Navbar';
 
@@ -564,6 +564,46 @@ export default function PatientDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Upcoming Appointment Alerts */}
+        {(() => {
+          const now = new Date();
+          const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const upcoming = bookings.filter(b => {
+            if (b.status !== 'accepted') return false;
+            const d = new Date(b.preferred_date);
+            return d >= now && d <= in24h;
+          });
+          if (upcoming.length === 0) return null;
+          return (
+            <div className="mb-6 space-y-3">
+              {upcoming.map(b => {
+                const date = new Date(b.preferred_date);
+                const hoursLeft = Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60));
+                return (
+                  <div key={b.id} className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4">
+                    <div className="p-2.5 bg-emerald-100 rounded-xl shrink-0">
+                      <Clock className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Upcoming: {b.service?.name || 'Appointment'}
+                        {b.doctor && ` with Dr. ${b.doctor.first_name} ${b.doctor.last_name}`}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {date.toLocaleDateString()} at {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {' '}— {hoursLeft <= 1 ? 'in less than 1 hour' : `in ${hoursLeft} hours`}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full shrink-0">
+                      {hoursLeft <= 1 ? 'Soon' : `${hoursLeft}h`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
