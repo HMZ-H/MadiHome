@@ -10,6 +10,7 @@ import (
 	"github.com/HMZ-H/Madihome/Infrastructure/database"
 	"github.com/HMZ-H/Madihome/Infrastructure/email"
 	"github.com/HMZ-H/Madihome/Infrastructure/realtime"
+	"github.com/HMZ-H/Madihome/Infrastructure/scheduler"
 	"github.com/HMZ-H/Madihome/Infrastructure/security"
 	"github.com/HMZ-H/Madihome/Infrastructure/storage"
 	repository "github.com/HMZ-H/Madihome/Repository"
@@ -167,6 +168,11 @@ func main() {
 
 	// Set up Gin router
 	r := router.SetupRouter(userController, authController, doctorController, homecareServiceController, homecarePlanController, homecareVisitController, bookingController, notificationController, fileController, adminController, roleRequestController, messageController, aiController, wsController, reviewController, jwtService)
+
+	// Start appointment reminder scheduler
+	reminderScheduler := scheduler.NewReminderScheduler(bookingRepo, emailService)
+	reminderScheduler.Start()
+	defer reminderScheduler.Stop()
 
 	// Start the server
 	port := os.Getenv("PORT")
