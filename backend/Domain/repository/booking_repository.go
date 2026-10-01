@@ -1,6 +1,10 @@
 package repository
 
-import "github.com/HMZ-H/Madihome/Domain/entity"
+import (
+	"time"
+
+	"github.com/HMZ-H/Madihome/Domain/entity"
+)
 
 type BookingRepository interface {
 	CreateBooking(booking *entity.Booking) (*entity.Booking, error)
@@ -12,5 +16,7 @@ type BookingRepository interface {
 	UpdateBooking(booking *entity.Booking) (*entity.Booking, error)
 	DeleteBooking(id uint) error
 	GetAllBookings() ([]*entity.Booking, error)
+	GetUpcomingBookings(from, to time.Time) ([]*entity.Booking, error)
+	MarkReminderSent(id uint) error
 }
 
