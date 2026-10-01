@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/HMZ-H/Madihome/Domain/entity"
 	"github.com/HMZ-H/Madihome/Domain/repository"
 	"gorm.io/gorm"
@@ -96,5 +98,17 @@ func (r *BookingRepository) GetAllBookings() ([]*entity.Booking, error) {
 		return nil, err
 	}
 	return bookings, nil
+}
+
+func (r *BookingRepository) GetUpcomingBookings(from, to time.Time) ([]*entity.Booking, error) {
+	var bookings []*entity.Booking
+	err := r.db.Preload("User").Preload("Service").Preload("Doctor").Preload("Doctor.User").
+		Where("status = ? AND reminder_sent = ? AND preferred_date BETWEEN ? AND ?", "accepted", false, from, to).
+		Find(&bookings).Error
+	return bookings, err
+}
+
+func (r *BookingRepository) MarkReminderSent(id uint) error {
+	return r.db.Model(&entity.Booking{}).Where("id = ?", id).Update("reminder_sent", true).Error
 }
 

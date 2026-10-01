@@ -16,6 +16,7 @@ type Booking struct {
 	DoctorNotes    string    `json:"doctor_notes" gorm:"type:text"`
 	EstimatedPrice *float64  `json:"estimated_price"`
 	ActualPrice    *float64  `json:"actual_price"`
+	ReminderSent   bool      `json:"reminder_sent" gorm:"default:false"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
